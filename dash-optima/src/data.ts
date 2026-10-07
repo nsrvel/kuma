@@ -89,7 +89,7 @@ export const columns: Column[] = [
         title: 'Animation Design',
         description: 'Create character animation for hero sequence and product intro.',
         image:
-          'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=480&h=280&fit=crop',
+          'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=480&h=280&fit=crop',
         avatars: [avatars.a, avatars.b],
         links: 2,
         comments: 2,
