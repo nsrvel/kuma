@@ -33,3 +33,8 @@ Icon
 *.swp
 *.bak
 *~
+
+# Node / Vite (dash-optima)
+node_modules/
+dash-optima/dist/
+*.local
