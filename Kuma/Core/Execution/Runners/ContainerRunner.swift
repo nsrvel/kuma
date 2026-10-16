@@ -41,6 +41,10 @@ public final class ContainerRunner: ServiceRunnerProtocol, @unchecked Sendable {
             Self.logger.info(
                 "Adopting running compose stack on implicit project for service \(service.id.uuidString, privacy: .public)"
             )
+            await LiveLogSystemEmitter.emit(
+                serviceID: service.id,
+                message: "Adopted running compose stack (project \(adopted.projectName))"
+            )
             registerStack(adopted)
             await ExecutionSupervisor.shared.register(
                 .composeStack(serviceID: service.id, serviceName: service.name, context: adopted)
@@ -50,11 +54,29 @@ public final class ContainerRunner: ServiceRunnerProtocol, @unchecked Sendable {
 
         try await runInitialScript(provider: provider, workingDir: context.workingDirectory)
 
+        await LiveLogSystemEmitter.emit(
+            serviceID: service.id,
+            message: "Running compose up -d (project \(context.projectName))"
+        )
         let up = try await composeUpResult(context: context)
         guard up.exitCode == 0 else {
-            throw ServiceExecutionError.processFailed(
-                composeFailureMessage(binaryName: binaryName, context: context, exitCode: up.exitCode, output: up.output)
+            let failure = composeFailureMessage(
+                binaryName: binaryName,
+                context: context,
+                exitCode: up.exitCode,
+                output: up.output
             )
+            let oneLine = failure.replacingOccurrences(of: "\n", with: " ")
+            await LiveLogSystemEmitter.emit(serviceID: service.id, message: oneLine)
+            if PortConflictMessaging.isComposePortConflictMessage(failure),
+               PortConflictMessaging.currentPortConflictPolicy() == .warnAndBlock {
+                throw ServiceExecutionError.portInUse(
+                    port: 0,
+                    collidingService: "another process",
+                    startingServiceName: service.name
+                )
+            }
+            throw ServiceExecutionError.processFailed(failure)
         }
 
         guard await composeHasRunningContainers(context: context) else {

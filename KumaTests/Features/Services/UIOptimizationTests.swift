@@ -146,13 +146,50 @@ struct UIOptimizationTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckContentBodyView.swift")
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckCardGridView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         #expect(source.contains(".adaptive"))
         #expect(source.contains("cardMinWidth"))
         #expect(source.contains("cardMaxWidth"))
         #expect(!source.contains("maximum: .infinity"))
         #expect(!source.contains("onGeometryChange"))
+    }
+
+    @Test("TC-G04: ServicesDeckView does not rebuild deck actions in contentBody")
+    func testServicesDeckViewDoesNotMakeDeckActionsInBody() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/ServicesDeckView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(!source.contains("makeDeckActions"))
+    }
+
+    @Test("TC-G05: Deck content body avoids holding ServicesDeckViewModel")
+    func testDeckContentBodyIsSnapshotDriven() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckContentBodyView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(!source.contains("ServicesDeckViewModel"))
+        #expect(source.contains("ServicesDeckCardGridView"))
+    }
+
+    @Test("TC-G06: Deck cards skip ProviderBrandIcon rasterization")
+    func testDeckCardsDisableBrandIconRasterize() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServiceCardView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(source.contains("rasterize: false"))
     }
 
     @Test("TC-UI02: LiveLogEntry formats correctly without memory overhead")

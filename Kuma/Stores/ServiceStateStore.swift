@@ -69,6 +69,7 @@ public final class ServiceStateStore {
     func applyLastFailure(_ message: String?, for serviceID: UUID) {
         if let message {
             lastFailureMessages[serviceID] = message
+            Task { await SystemActivityLogRecording.shared.recordFailure(serviceID: serviceID, message: message) }
         } else {
             lastFailureMessages.removeValue(forKey: serviceID)
         }

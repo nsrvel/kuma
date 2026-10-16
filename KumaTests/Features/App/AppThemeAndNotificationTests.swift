@@ -36,6 +36,12 @@ struct AppThemeAndNotificationTests {
         #expect(fieldStroke == KumaColors.inputBorder.opacity(0.6))
     }
 
+    @Test("TC-H04: bundled JetBrains Mono Nerd Font registers for activity log")
+    func testBundledNerdFontRegisters() {
+        KumaLogFont.registerBundledFonts()
+        #expect(KumaLogFont.isNerdFontAvailable)
+    }
+
     @Test("TC-H03: KumaStatus maps all ServiceState cases; transitional states share one hue")
     func testKumaStatusServiceStateColors() {
         for state in ServiceState.allCases {
