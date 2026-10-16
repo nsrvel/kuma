@@ -40,6 +40,10 @@ public final class KubernetesRunner: ServiceRunnerProtocol, @unchecked Sendable 
             exec: execConfig
         )
         KubeLiveTargetDisplay.setResolvedName(resolved.name, for: service.id)
+        await LiveLogSystemEmitter.emit(
+            serviceID: service.id,
+            message: "Resolved target: \(resolved.name)"
+        )
 
         let plan = KubePortForwardPlan.build(
             resolved: resolved,
@@ -52,6 +56,10 @@ public final class KubernetesRunner: ServiceRunnerProtocol, @unchecked Sendable 
         if let adoptedPID = await KubePortForwardAdoption.findAdoptablePID(plan: plan) {
             Self.logger.info(
                 "Using existing kubectl port-forward (PID \(adoptedPID, privacy: .public)) for service \(service.id.uuidString, privacy: .public)"
+            )
+            await LiveLogSystemEmitter.emit(
+                serviceID: service.id,
+                message: "Adopted existing port-forward (PID \(adoptedPID))"
             )
             await processLauncher.adoptExternalProcess(
                 serviceID: service.id,
@@ -69,6 +77,7 @@ public final class KubernetesRunner: ServiceRunnerProtocol, @unchecked Sendable 
             )
         }
 
+        await LiveLogSystemEmitter.emit(serviceID: service.id, message: "Launching kubectl port-forward…")
         _ = try await processLauncher.launch(
             serviceID: service.id,
             serviceName: service.name,

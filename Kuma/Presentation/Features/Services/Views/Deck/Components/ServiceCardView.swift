@@ -30,9 +30,12 @@ public struct ServiceCardView: View, Equatable {
                                     : snapshot.providerCategory.gradient
                                 )
                                 .frame(width: 34, height: 34)
-                                .shadow(color: Color.black.opacity(snapshot.isDisabled ? 0.0 : 0.16), radius: 2, y: 1)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .strokeBorder(Color.black.opacity(snapshot.isDisabled ? 0 : 0.08), lineWidth: 1)
+                                }
 
-                            ProviderBrandIcon(category: snapshot.providerCategory, size: 16)
+                            ProviderBrandIcon(category: snapshot.providerCategory, size: 16, rasterize: false)
                                 .foregroundStyle(snapshot.isDisabled ? Color.secondary : Color.white)
                         }
 
@@ -47,10 +50,8 @@ public struct ServiceCardView: View, Equatable {
                                     .foregroundStyle(Color.yellow)
                             }
                             .offset(x: 4, y: -4)
-                            .transition(.scale(scale: 0.5).combined(with: .opacity))
                         }
                     }
-                    .animation(.spring(response: 0.26, dampingFraction: 0.65), value: snapshot.isStarred)
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(snapshot.name)
@@ -83,7 +84,7 @@ public struct ServiceCardView: View, Equatable {
 
                 Spacer(minLength: 4)
 
-                ServiceStatusObserver(state: runtime, isDisabled: snapshot.isDisabled)
+                ServiceStatusObserver(state: runtime, isDisabled: snapshot.isDisabled, deckStyle: true)
             }
         }
         .padding(14)
@@ -101,24 +102,7 @@ public struct ServiceCardView: View, Equatable {
         }
         .opacity(snapshot.isDisabled ? 0.65 : 1.0)
         .contextMenu {
-            if let deckActions {
-                ServiceActionContextMenu(
-                    snapshot: snapshot,
-                    runtime: runtime,
-                    groupsProvider: deckActions.groups,
-                    selectedGroupIDsProvider: { deckActions.groupIDsForService(snapshot.id) },
-                    onToggle: { deckActions.onToggle(snapshot.id) },
-                    onRestart: { deckActions.onRestart(snapshot.id) },
-                    onSwitchProvider: { deckActions.onSwitchProvider(snapshot.id, $0) },
-                    onToggleStar: { deckActions.onToggleStar(snapshot.id) },
-                    onToggleDisabled: { deckActions.onToggleDisabled(snapshot.id) },
-                    onToggleGroup: { deckActions.onToggleGroup(snapshot.id, $0) },
-                    onDuplicate: { deckActions.onDuplicate(snapshot.id) },
-                    onCopyConfig: { deckActions.onCopyConfig(snapshot.id) },
-                    onDelete: { deckActions.onDelete(snapshot.id) },
-                    onSelect: { deckActions.onSelect(snapshot.id) }
-                )
-            }
+            ServiceCardContextMenu(snapshot: snapshot, runtime: runtime)
         }
     }
 

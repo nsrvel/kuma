@@ -4,28 +4,29 @@ public struct ProviderBrandIcon: View {
     public let category: ProviderCategory
     public var tunnelType: String? = nil
     public var size: CGFloat = 14
+    public var rasterize: Bool = true
 
-    public init(category: ProviderCategory, tunnelType: String? = nil, size: CGFloat = 14) {
+    public init(
+        category: ProviderCategory,
+        tunnelType: String? = nil,
+        size: CGFloat = 14,
+        rasterize: Bool = true
+    ) {
         self.category = category
         self.tunnelType = tunnelType
         self.size = size
+        self.rasterize = rasterize
     }
 
     public var body: some View {
         Group {
             switch category {
             case .docker:
-                DockerBrandVector()
-                    .frame(width: size, height: size)
-                    .drawingGroup(opaque: false, colorMode: .nonLinear)
+                brandVector(DockerBrandVector())
             case .kubernetes:
-                KubernetesBrandVector()
-                    .frame(width: size, height: size)
-                    .drawingGroup(opaque: false, colorMode: .nonLinear)
+                brandVector(KubernetesBrandVector())
             case .podman:
-                PodmanBrandVector()
-                    .frame(width: size, height: size)
-                    .drawingGroup(opaque: false, colorMode: .nonLinear)
+                brandVector(PodmanBrandVector())
             case .shell:
                 Image(systemName: "terminal.fill")
                     .resizable()
@@ -52,6 +53,16 @@ public struct ProviderBrandIcon: View {
                     .scaledToFit()
                     .frame(width: size, height: size)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func brandVector<V: View>(_ vector: V) -> some View {
+        let framed = vector.frame(width: size, height: size)
+        if rasterize {
+            framed.drawingGroup(opaque: false, colorMode: .nonLinear)
+        } else {
+            framed
         }
     }
 }

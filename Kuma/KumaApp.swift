@@ -17,6 +17,8 @@ struct KumaApp: App {
                 .environment(serviceStateStore)
                 .kumaMainWorkspaceChrome()
                 .onAppear {
+                    KumaLogFont.registerBundledFonts()
+                    SystemActivityLogRecording.install(LiveLogRecordingBridge())
                     appDelegate.serviceStateStore = serviceStateStore
                     if !SingleInstanceGuard.isTestingEnvironment {
                         RunSpool.purgeAll()

@@ -66,9 +66,12 @@ public final class LocalPortConflictResolver: Sendable {
             guard !foreignPIDs.isEmpty else { return }
 
             let collidingLabel = await collidingServiceLabel(forPID: foreignPIDs[0])
-            let message = "Port \(port) is in use by \(collidingLabel). Cannot start “\(startingServiceName)” (policy: Warn & Prevent Start)."
             await SystemNotificationCenter.shared.send(.portCollision(port: port, collidingService: collidingLabel))
-            throw ServiceExecutionError.processFailed(message)
+            throw ServiceExecutionError.portInUse(
+                port: port,
+                collidingService: collidingLabel,
+                startingServiceName: startingServiceName
+            )
         }
     }
 

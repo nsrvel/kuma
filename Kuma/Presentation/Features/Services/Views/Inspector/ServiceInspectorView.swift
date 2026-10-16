@@ -6,6 +6,12 @@ public struct ServiceInspectorView: View {
     @State private var inspectorVM: ServiceInspectorViewModel
     @Environment(ServiceStateStore.self) var serviceStateStore
 
+    private var blockingConfigurationMessages: [String] {
+        inspectorVM.configurationIssues
+            .filter { $0.severity == .blocking }
+            .map(\.message)
+    }
+
     public init(
         serviceID: UUID,
         workspaceID: UUID,
@@ -58,13 +64,9 @@ public struct ServiceInspectorView: View {
                     if isViewingLogs {
                         InspectorLiveConsoleView(
                             serviceID: serviceID,
-                            service: service,
-                            provider: inspectorVM.activeProvider ?? Provider(
-                                id: UUID(),
-                                serviceID: serviceID,
-                                type: inspectorVM.activeCategory
-                            ),
-                            isRunning: isRunning
+                            isRunning: isRunning,
+                            lastFailure: serviceStateStore.lastFailure(for: serviceID),
+                            configurationMessages: blockingConfigurationMessages
                         )
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .move(edge: .trailing)),
