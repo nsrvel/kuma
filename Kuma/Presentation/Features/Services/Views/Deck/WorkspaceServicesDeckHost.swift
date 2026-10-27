@@ -50,6 +50,17 @@ struct WorkspaceServicesDeckHost: View {
         .onChange(of: filterGroupID) { _, newGroupID in
             viewModel.filterGroupID = newGroupID
         }
+        .onChange(of: runtimeSearchSyncToken) { _, _ in
+            viewModel.reconcileSearchFilterForRuntimeChanges()
+        }
+    }
+
+    /// Changes when operational services change while search may depend on live runtime labels.
+    private var runtimeSearchSyncToken: String {
+        guard !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return ""
+        }
+        return serviceStateStore.activeServiceIDs.map(\.uuidString).sorted().joined(separator: ",")
     }
 
     private func syncSidebarFiltersToViewModel() {

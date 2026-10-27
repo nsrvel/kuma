@@ -65,7 +65,7 @@ public final class ServiceExecutionEngine: Sendable {
     }
 
     public func start(serviceID: UUID) async throws {
-        if await isServiceRunning(serviceID: serviceID) {
+        if await ExecutionSupervisor.shared.hasActiveWorkload(serviceID: serviceID) {
             Self.logger.info("Service '\(serviceID)' is already actively running. Skipping rerun.")
             return
         }

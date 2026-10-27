@@ -70,6 +70,20 @@ public actor ExecutionSupervisor {
         return await ProcessRegistry.shared.isRunning(serviceID: serviceID)
     }
 
+    /// Whether a start would duplicate an in-flight or live workload (excludes auto-reconnect backoff).
+    public func hasActiveWorkload(serviceID: UUID) async -> Bool {
+        if await ProcessRegistry.shared.isRunning(serviceID: serviceID) {
+            return true
+        }
+        guard let state = records[serviceID]?.serviceState else { return false }
+        switch state {
+        case .running, .starting:
+            return true
+        case .reconnecting, .stopping, .stopped, .crashed:
+            return false
+        }
+    }
+
     public func runningServiceIDs(among candidates: Set<UUID>) async -> Set<UUID> {
         var running: Set<UUID> = []
         for id in candidates {

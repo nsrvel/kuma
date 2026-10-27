@@ -12,16 +12,10 @@ public final class ServicesDeckViewModel {
     public var searchText: String = "" {
         didSet {
             if oldValue != searchText {
-                searchDebounceTask?.cancel()
-                searchDebounceTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(nanoseconds: 150_000_000)
-                    guard !Task.isCancelled, let self else { return }
-                    self.recomputeFilteredSnapshots()
-                }
+                recomputeFilteredSnapshots()
             }
         }
     }
-    var searchDebounceTask: Task<Void, Never>? = nil
     public var selectedStatuses: Set<ServiceStatusFilterOption> = [] {
         didSet { if oldValue != selectedStatuses { recomputeFilteredSnapshots() } }
     }
@@ -74,7 +68,8 @@ public final class ServicesDeckViewModel {
     }
 
     public func notifyExecutionStatesChanged() {
-        if !selectedStatuses.isEmpty || sortBy == .status {
+        let hasSearch = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if hasSearch || !selectedStatuses.isEmpty || sortBy == .status {
             recomputeFilteredSnapshots()
         }
     }

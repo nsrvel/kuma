@@ -45,4 +45,68 @@ struct AutoReconnectTests {
                 == .reconnecting(attempt: 1, maxAttempts: AutoReconnectPolicy.maxAttempts)
         )
     }
+
+    @Test("AutoReconnect: supervisor snapshot rules during reconnect")
+    func testSupervisorSnapshotReconnectTransitions() {
+        let reconnecting = ServiceExecutionState.reconnecting(attempt: 1, maxAttempts: 3)
+        #expect(
+            !ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: reconnecting,
+                to: .running(pid: 42)
+            )
+        )
+        #expect(
+            !ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: reconnecting,
+                to: .reconnecting(attempt: 2, maxAttempts: 3)
+            )
+        )
+        #expect(
+            !ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: reconnecting,
+                to: .crashed(exitCode: 1)
+            )
+        )
+        #expect(
+            ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: reconnecting,
+                to: .idle
+            )
+        )
+        #expect(
+            ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: reconnecting,
+                to: .starting
+            )
+        )
+        #expect(
+            !ServiceStateStore.shouldIgnoreSupervisorTransitionDuringReconnect(
+                from: .running(pid: 1),
+                to: .idle
+            )
+        )
+    }
+}
+
+@Suite("Auto reconnect workload", .serialized)
+struct AutoReconnectWorkloadTests {
+
+    init() async {
+        await ProcessTestSupport.resetProcessWorld()
+    }
+
+    @Test("AutoReconnect: hasActiveWorkload false while reconnecting without process")
+    func testHasActiveWorkloadDuringReconnect() async {
+        let serviceID = UUID()
+        await ExecutionSupervisor.shared.setManagedProcessReconnecting(
+            serviceID: serviceID,
+            serviceName: "Test",
+            attempt: 1,
+            maxAttempts: AutoReconnectPolicy.maxAttempts
+        )
+        #expect(await ExecutionSupervisor.shared.hasActiveWorkload(serviceID: serviceID) == false)
+        #expect(await ExecutionSupervisor.shared.isOperational(serviceID: serviceID) == true)
+        await ExecutionSupervisor.shared.cancelReconnect(serviceID: serviceID)
+        await ExecutionSupervisor.shared.unregister(serviceID: serviceID)
+    }
 }

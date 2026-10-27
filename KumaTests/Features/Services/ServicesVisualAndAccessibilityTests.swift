@@ -153,4 +153,44 @@ struct ServicesVisualAndAccessibilityTests {
         #expect(snap.subtitle == "")
         #expect(snap.searchKey.contains("lonely"))
     }
+
+    @Test("TC-LAYER: deck search matches live Kubernetes target name")
+    func testDeckSearchMatchesKubeLiveTarget() {
+        let serviceID = UUID()
+        let snap = ServiceCardSnapshot(
+            id: serviceID,
+            name: "Cache",
+            subtitle: "Prod API",
+            providerCategory: .kubernetes,
+            searchKey: "cache prod api kubernetes"
+        )
+        #expect(!snap.matchesSearchQuery("redis"))
+        KubeLiveTargetDisplay.setResolvedName("redis-master-0", for: serviceID)
+        #expect(snap.matchesSearchQuery("redis"))
+        KubeLiveTargetDisplay.clear(serviceID: serviceID)
+    }
+
+    @Test("TC-LAYER: optimistic disabled toggle preserves deck search key")
+    @MainActor
+    func testDisabledTogglePreservesSearchKey() {
+        let suiteName = "test-search-key-\(UUID().uuidString)"
+        let ud = UserDefaults(suiteName: suiteName)!
+        ud.removePersistentDomain(forName: suiteName)
+        let vm = ServicesDeckViewModel(userDefaults: ud)
+        let id = UUID()
+        let richKey = "cache redis:alpine docker 6379"
+        vm.snapshots = [
+            ServiceCardSnapshot(
+                id: id,
+                name: "Cache",
+                subtitle: "Prod",
+                providerCategory: .docker,
+                searchKey: richKey
+            ),
+        ]
+        vm.toggleDisabled(id: id, workspaceID: UUID())
+        #expect(vm.snapshots.first?.searchKey == richKey)
+        vm.searchText = "redis"
+        #expect(vm.filteredSnapshots.count == 1)
+    }
 }

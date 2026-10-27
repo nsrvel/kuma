@@ -6,7 +6,7 @@ import Testing
 @Suite("UI Optimization & Performance Tests", .serialized)
 struct UIOptimizationTests {
 
-    @Test("TC-UI01: Deck search debouncing updates filtered results asynchronously")
+    @Test("TC-UI01: Deck search updates filtered results immediately")
     @MainActor
     func testDeckSearchDebouncing() async throws {
         let suiteName = "test-deck-debounce-\(UUID().uuidString)"
@@ -44,15 +44,7 @@ struct UIOptimizationTests {
         vm.snapshots = [s1, s2]
         #expect(vm.filteredSnapshots.count == 2)
 
-        // Type search query
         vm.searchText = "Alpha"
-
-        // Wait for debounce (150ms delay) to settle on MainActor
-        let deadline = Date().addingTimeInterval(3.0)
-        while vm.filteredSnapshots.count != 1 && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            await Task.yield()
-        }
 
         #expect(vm.filteredSnapshots.count == 1)
         #expect(vm.filteredSnapshots.first?.name == "Alpha Service")
@@ -88,7 +80,7 @@ struct UIOptimizationTests {
         #expect(ServicesDeckRuntimeObservation.shouldHandleExecutionStateNotifications(store: store))
     }
 
-    @Test("TC-E05b: notifyExecutionStatesChanged is no-op without status filter or sort")
+    @Test("TC-E05b: notifyExecutionStatesChanged skips recompute unless search, status filter, or sort")
     @MainActor
     func testNotifyExecutionStatesChangedSkipsRecomputeWhenIdleFilters() {
         let suiteName = "test-deck-notify-\(UUID().uuidString)"
@@ -103,9 +95,16 @@ struct UIOptimizationTests {
         vm.notifyExecutionStatesChanged()
         #expect(vm.filterVersion == versionBefore)
 
-        vm.sortBy = .status
+        vm.searchText = "A"
+        let versionWithSearch = vm.filterVersion
         vm.notifyExecutionStatesChanged()
-        #expect(vm.filterVersion > versionBefore)
+        #expect(vm.filterVersion > versionWithSearch)
+
+        vm.searchText = ""
+        vm.sortBy = .status
+        let versionWithSort = vm.filterVersion
+        vm.notifyExecutionStatesChanged()
+        #expect(vm.filterVersion > versionWithSort)
     }
 
     @Test("TC-G02b: ServiceCardView renders headlessly with deck actions environment")
