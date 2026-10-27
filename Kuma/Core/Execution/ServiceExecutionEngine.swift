@@ -8,6 +8,7 @@ public enum ServiceExecutionError: LocalizedError, Sendable {
     case invalidConfiguration(String)
     case binaryNotFound(String)
     case processFailed(String)
+    case portInUse(port: Int, collidingService: String, startingServiceName: String)
 
     public var errorDescription: String? {
         switch self {
@@ -21,6 +22,12 @@ public enum ServiceExecutionError: LocalizedError, Sendable {
             return "Required binary '\(name)' could not be located on this Mac."
         case .processFailed(let reason):
             return "Execution failed: \(reason)"
+        case .portInUse(let port, let collidingService, let startingServiceName):
+            return PortConflictMessaging.blockedStartMessage(
+                port: port,
+                collidingService: collidingService,
+                startingServiceName: startingServiceName
+            )
         }
     }
 }
@@ -58,7 +65,7 @@ public final class ServiceExecutionEngine: Sendable {
     }
 
     public func start(serviceID: UUID) async throws {
-        if await isServiceRunning(serviceID: serviceID) {
+        if await ExecutionSupervisor.shared.hasActiveWorkload(serviceID: serviceID) {
             Self.logger.info("Service '\(serviceID)' is already actively running. Skipping rerun.")
             return
         }
@@ -74,9 +81,21 @@ public final class ServiceExecutionEngine: Sendable {
 
         Self.logger.info("Starting service '\(service.name)' with provider '\(provider.type.rawValue)'")
 
+        await LiveLogSystemEmitter.beginRun(serviceID: serviceID)
+        await LiveLogSystemEmitter.emit(
+            serviceID: serviceID,
+            message: "Starting \"\(service.name)\" (\(provider.type.rawValue))"
+        )
+
         let runner = runner(for: provider.type)
-        try await runner.start(service: service, provider: provider)
-        await ExecutionSupervisor.shared.beginReconnectSession(serviceID: serviceID)
+        do {
+            try await runner.start(service: service, provider: provider)
+            await ExecutionSupervisor.shared.beginReconnectSession(serviceID: serviceID)
+        } catch {
+            let description = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Start failed: \(description)")
+            throw error
+        }
     }
 
     public func stop(serviceID: UUID) async {

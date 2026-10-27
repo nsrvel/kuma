@@ -20,7 +20,10 @@ extension ServiceInspectorViewModel {
         }
         guard canStartService else { return }
         Task {
-            guard await validateConfigurationForStart() else { return }
+            guard await validateConfigurationForStart() else {
+                await logBlockingConfigurationIssuesToActivity()
+                return
+            }
             configurationIssues = []
             stateStore?.setExecutionState(.starting, for: serviceID)
             do {
@@ -34,6 +37,7 @@ extension ServiceInspectorViewModel {
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 stateStore?.setLastFailureMessage(message, for: serviceID)
                 stateStore?.setExecutionState(.crashed(exitCode: 1), for: serviceID)
+                ServiceStartFailurePresenter.present(error: error, serviceName: service?.name)
             }
             postUpdatedNotification()
         }

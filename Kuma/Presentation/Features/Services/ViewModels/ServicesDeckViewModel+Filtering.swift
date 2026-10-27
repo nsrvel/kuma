@@ -5,6 +5,20 @@ extension ServicesDeckViewModel {
         filteredSnapshots
     }
 
+    /// Re-runs search when runtime-only fields (e.g. live Kubernetes target) change.
+    func reconcileSearchFilterForRuntimeChanges() {
+        let hasSearch = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasSearch else { return }
+        recomputeFilteredSnapshots()
+    }
+
+    static func duplicateSearchKey(from original: String, originalName: String, copyName: String) -> String {
+        let oldToken = originalName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let newToken = copyName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !oldToken.isEmpty else { return "\(newToken) \(original)".lowercased() }
+        return original.replacingOccurrences(of: oldToken, with: newToken)
+    }
+
     func recomputeFilteredSnapshots() {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let hasSearch = !query.isEmpty
@@ -21,7 +35,7 @@ extension ServicesDeckViewModel {
                 return false
             }
             if hasSearch {
-                if !snapshot.searchKey.contains(query) {
+                if !snapshot.matchesSearchQuery(query) {
                     return false
                 }
             }

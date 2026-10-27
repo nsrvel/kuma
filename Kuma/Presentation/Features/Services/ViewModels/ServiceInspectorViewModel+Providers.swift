@@ -44,7 +44,14 @@ extension ServiceInspectorViewModel {
                 }
             } catch {
                 Self.logger.error("Failed to switch active provider for service \(srv.id): \(error.localizedDescription)")
-                stateStore?.clearStoppingIfStillPending(for: serviceID)
+                if wasRunning, error is ServiceExecutionError {
+                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    stateStore?.setLastFailureMessage(message, for: serviceID)
+                    stateStore?.setExecutionState(.crashed(exitCode: 1), for: serviceID)
+                } else {
+                    stateStore?.clearStoppingIfStillPending(for: serviceID)
+                }
+                ServiceStartFailurePresenter.present(error: error, serviceName: srv.name)
             }
         }
     }

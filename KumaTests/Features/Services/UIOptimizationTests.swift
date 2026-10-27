@@ -6,7 +6,7 @@ import Testing
 @Suite("UI Optimization & Performance Tests", .serialized)
 struct UIOptimizationTests {
 
-    @Test("TC-UI01: Deck search debouncing updates filtered results asynchronously")
+    @Test("TC-UI01: Deck search updates filtered results immediately")
     @MainActor
     func testDeckSearchDebouncing() async throws {
         let suiteName = "test-deck-debounce-\(UUID().uuidString)"
@@ -44,15 +44,7 @@ struct UIOptimizationTests {
         vm.snapshots = [s1, s2]
         #expect(vm.filteredSnapshots.count == 2)
 
-        // Type search query
         vm.searchText = "Alpha"
-
-        // Wait for debounce (150ms delay) to settle on MainActor
-        let deadline = Date().addingTimeInterval(3.0)
-        while vm.filteredSnapshots.count != 1 && Date() < deadline {
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            await Task.yield()
-        }
 
         #expect(vm.filteredSnapshots.count == 1)
         #expect(vm.filteredSnapshots.first?.name == "Alpha Service")
@@ -88,7 +80,7 @@ struct UIOptimizationTests {
         #expect(ServicesDeckRuntimeObservation.shouldHandleExecutionStateNotifications(store: store))
     }
 
-    @Test("TC-E05b: notifyExecutionStatesChanged is no-op without status filter or sort")
+    @Test("TC-E05b: notifyExecutionStatesChanged skips recompute unless search, status filter, or sort")
     @MainActor
     func testNotifyExecutionStatesChangedSkipsRecomputeWhenIdleFilters() {
         let suiteName = "test-deck-notify-\(UUID().uuidString)"
@@ -103,9 +95,16 @@ struct UIOptimizationTests {
         vm.notifyExecutionStatesChanged()
         #expect(vm.filterVersion == versionBefore)
 
-        vm.sortBy = .status
+        vm.searchText = "A"
+        let versionWithSearch = vm.filterVersion
         vm.notifyExecutionStatesChanged()
-        #expect(vm.filterVersion > versionBefore)
+        #expect(vm.filterVersion > versionWithSearch)
+
+        vm.searchText = ""
+        vm.sortBy = .status
+        let versionWithSort = vm.filterVersion
+        vm.notifyExecutionStatesChanged()
+        #expect(vm.filterVersion > versionWithSort)
     }
 
     @Test("TC-G02b: ServiceCardView renders headlessly with deck actions environment")
@@ -146,13 +145,50 @@ struct UIOptimizationTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckContentBodyView.swift")
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckCardGridView.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         #expect(source.contains(".adaptive"))
         #expect(source.contains("cardMinWidth"))
         #expect(source.contains("cardMaxWidth"))
         #expect(!source.contains("maximum: .infinity"))
         #expect(!source.contains("onGeometryChange"))
+    }
+
+    @Test("TC-G04: ServicesDeckView does not rebuild deck actions in contentBody")
+    func testServicesDeckViewDoesNotMakeDeckActionsInBody() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/ServicesDeckView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(!source.contains("makeDeckActions"))
+    }
+
+    @Test("TC-G05: Deck content body avoids holding ServicesDeckViewModel")
+    func testDeckContentBodyIsSnapshotDriven() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServicesDeckContentBodyView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(!source.contains("ServicesDeckViewModel"))
+        #expect(source.contains("ServicesDeckCardGridView"))
+    }
+
+    @Test("TC-G06: Deck cards skip ProviderBrandIcon rasterization")
+    func testDeckCardsDisableBrandIconRasterize() throws {
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Kuma/Presentation/Features/Services/Views/Deck/Components/ServiceCardView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        #expect(source.contains("rasterize: false"))
     }
 
     @Test("TC-UI02: LiveLogEntry formats correctly without memory overhead")

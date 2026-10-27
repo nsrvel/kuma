@@ -24,6 +24,8 @@ public actor ExecutionSupervisor {
 
     private static let reconnectLogger = Logger(subsystem: "lokastudio.kuma", category: "AutoReconnect")
     private var reconnectSessions: [UUID: ReconnectSession] = [:]
+    private var lastLoggedHealthState: [UUID: ServiceState] = [:]
+    private var lastLoggedProcessRunning: [UUID: Bool] = [:]
 
     private init() {}
 
@@ -66,6 +68,20 @@ public actor ExecutionSupervisor {
             return true
         }
         return await ProcessRegistry.shared.isRunning(serviceID: serviceID)
+    }
+
+    /// Whether a start would duplicate an in-flight or live workload (excludes auto-reconnect backoff).
+    public func hasActiveWorkload(serviceID: UUID) async -> Bool {
+        if await ProcessRegistry.shared.isRunning(serviceID: serviceID) {
+            return true
+        }
+        guard let state = records[serviceID]?.serviceState else { return false }
+        switch state {
+        case .running, .starting:
+            return true
+        case .reconnecting, .stopping, .stopped, .crashed:
+            return false
+        }
     }
 
     public func runningServiceIDs(among candidates: Set<UUID>) async -> Set<UUID> {
@@ -132,6 +148,8 @@ public actor ExecutionSupervisor {
         composeContexts.removeValue(forKey: serviceID)
         pollerJobs.removeValue(forKey: serviceID)
         pollerDue.removeValue(forKey: serviceID)
+        lastLoggedHealthState.removeValue(forKey: serviceID)
+        lastLoggedProcessRunning.removeValue(forKey: serviceID)
         if let rec = records[serviceID] {
             records[serviceID] = ExecutionRecord(
                 serviceID: serviceID,
@@ -160,6 +178,7 @@ public actor ExecutionSupervisor {
         KubeLiveTargetDisplay.clear(serviceID: serviceID)
 
         if intentionalStop {
+            await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Stopped (exit \(exitCode)).")
             cancelReconnect(serviceID: serviceID)
             records[serviceID] = ExecutionRecord(
                 serviceID: serviceID,
@@ -171,6 +190,7 @@ public actor ExecutionSupervisor {
                 lastFailure: nil
             )
             schedulePublish()
+            await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
             return
         }
 
@@ -182,6 +202,7 @@ public actor ExecutionSupervisor {
         if tookReconnect { return }
 
         if exitCode == 0 {
+            await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Stopped (exit 0).")
             records[serviceID] = ExecutionRecord(
                 serviceID: serviceID,
                 serviceName: serviceName,
@@ -192,9 +213,11 @@ public actor ExecutionSupervisor {
                 lastFailure: nil
             )
             schedulePublish()
+            await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
             return
         }
 
+        await emitCrashLiveLogLines(serviceID: serviceID, exitCode: exitCode, detail: failureTail)
         await finalizeManagedProcessCrash(
             serviceID: serviceID,
             serviceName: serviceName,
@@ -202,6 +225,7 @@ public actor ExecutionSupervisor {
             failure: failureTail,
             notify: true
         )
+        await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
     }
 
     public func setManagedProcessReconnecting(
@@ -220,6 +244,12 @@ public actor ExecutionSupervisor {
             reconnectMax: maxAttempts
         )
         schedulePublish()
+        Task {
+            await LiveLogSystemEmitter.emit(
+                serviceID: serviceID,
+                message: "Reconnecting (attempt \(attempt)/\(maxAttempts))…"
+            )
+        }
     }
 
     public func finalizeManagedProcessCrash(
@@ -275,6 +305,7 @@ public actor ExecutionSupervisor {
     }
 
     private func performStop(serviceID: UUID) async {
+        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Stopping service…")
         cancelReconnect(serviceID: serviceID)
         if await ProcessRegistry.shared.isRunning(serviceID: serviceID) {
             await ProcessRegistry.shared.stop(serviceID: serviceID)
@@ -282,6 +313,7 @@ public actor ExecutionSupervisor {
         composeContexts.removeValue(forKey: serviceID)
         pollerJobs.removeValue(forKey: serviceID)
         unregister(serviceID: serviceID, serviceState: .stopped)
+        await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
     }
 
     // MARK: - Coalesced publish
@@ -316,6 +348,10 @@ public actor ExecutionSupervisor {
             let running = await composeHasRunningContainers(context: context)
             if !running {
                 let name = records[serviceID]?.serviceName ?? "Service"
+                await LiveLogSystemEmitter.emit(
+                    serviceID: serviceID,
+                    message: "Compose stack has no running containers"
+                )
                 records[serviceID] = ExecutionRecord(
                     serviceID: serviceID,
                     serviceName: name,
@@ -326,6 +362,7 @@ public actor ExecutionSupervisor {
                     lastFailure: "Compose stack no longer has running containers"
                 )
                 composeContexts.removeValue(forKey: serviceID)
+                await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
             }
         }
         schedulePublish()
@@ -420,13 +457,20 @@ public actor ExecutionSupervisor {
         )
         pollerDue[serviceID]?.nextDue = Date().addingTimeInterval(TimeInterval(interval))
         schedulePublish()
-        await MainActor.run {
-            LiveLogSession.shared.emitPollerLine(serviceID: serviceID, message: "[HEALTH] \(url.absoluteString) -> \(serviceState)")
+        let previous = lastLoggedHealthState[serviceID]
+        if previous != serviceState {
+            lastLoggedHealthState[serviceID] = serviceState
+            await LiveLogSystemEmitter.emitRawLine(
+                serviceID: serviceID,
+                message: "[HEALTH] \(url.absoluteString) -> \(serviceState)"
+            )
         }
     }
 
     private func pollProcess(serviceID: UUID, serviceName: String, name: String, interval: Int, psIndex: [String: pid_t]) async {
         let pid = psIndex.first { $0.key.contains(name) }?.value
+        let isRunning = pid != nil
+        let previous = lastLoggedProcessRunning[serviceID]
         records[serviceID] = ExecutionRecord(
             serviceID: serviceID,
             serviceName: serviceName,
@@ -437,8 +481,13 @@ public actor ExecutionSupervisor {
         )
         pollerDue[serviceID]?.nextDue = Date().addingTimeInterval(TimeInterval(interval))
         schedulePublish()
-        await MainActor.run {
-            LiveLogSession.shared.emitPollerLine(serviceID: serviceID, message: "[MONITOR] \(name) -> \(pid.map { "PID \($0)" } ?? "not running")")
+        if previous != isRunning {
+            lastLoggedProcessRunning[serviceID] = isRunning
+            let detail = pid.map { "PID \($0)" } ?? "not running"
+            await LiveLogSystemEmitter.emitRawLine(
+                serviceID: serviceID,
+                message: "[MONITOR] \(name) -> \(detail)"
+            )
         }
     }
 
@@ -502,6 +551,10 @@ public actor ExecutionSupervisor {
                 Self.reconnectLogger.warning(
                     "Auto reconnect attempt \(attempt, privacy: .public) failed for \(serviceName, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
+                await LiveLogSystemEmitter.emit(
+                    serviceID: serviceID,
+                    message: "Reconnect attempt \(attempt) failed: \(error.localizedDescription)"
+                )
                 _ = await ExecutionSupervisor.shared.handleAutoReconnectIfNeeded(
                     serviceID: serviceID,
                     serviceName: serviceName,
@@ -522,6 +575,8 @@ public actor ExecutionSupervisor {
         session.task?.cancel()
         reconnectSessions.removeValue(forKey: serviceID)
         let message = "Auto reconnect failed after \(AutoReconnectPolicy.maxAttempts) attempts"
+        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Auto reconnect exhausted")
+        await emitCrashLiveLogLines(serviceID: serviceID, exitCode: exitCode, detail: message)
         await finalizeManagedProcessCrash(
             serviceID: serviceID,
             serviceName: serviceName,
@@ -529,6 +584,17 @@ public actor ExecutionSupervisor {
             failure: message,
             notify: true
         )
+        await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
+    }
+
+    private func emitCrashLiveLogLines(serviceID: UUID, exitCode: Int32, detail: String?) async {
+        var messages = ["Crashed (exit \(exitCode))."]
+        if let detail, !detail.isEmpty {
+            for line in detail.split(separator: "\n", omittingEmptySubsequences: true) {
+                messages.append(String(line))
+            }
+        }
+        await LiveLogSystemEmitter.emitBatch(serviceID: serviceID, messages: messages)
     }
 }
 

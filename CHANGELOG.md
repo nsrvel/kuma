@@ -1,6 +1,6 @@
 # Changelog
 
-All notable releases are documented here and on [GitHub Releases](https://github.com/nsrvel/Kuma/releases).
+All notable releases are documented here and on [GitHub Releases](https://github.com/nsrvel/kuma/releases).
 
 ## 1.0.0 — 2026-09-30
 

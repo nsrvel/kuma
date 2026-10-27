@@ -8,8 +8,10 @@ public struct StatusPillView: View {
     private let status: ServiceState
     private let showsOrbit: Bool
     private let showsGlow: Bool
+    private let deckStyle: Bool
 
-    public init(runtime: ServiceRuntimeState, isDisabled: Bool = false) {
+    public init(runtime: ServiceRuntimeState, isDisabled: Bool = false, deckStyle: Bool = false) {
+        self.deckStyle = deckStyle
         if isDisabled {
             self.text = "Disabled"
             self.indicatorColor = KumaStatus.disabledIndicator
@@ -36,7 +38,8 @@ public struct StatusPillView: View {
             StatusPillLeadingIndicator(
                 color: indicatorColor,
                 showsOrbit: showsOrbit,
-                showsGlow: showsGlow
+                showsGlow: showsGlow,
+                deckStyle: deckStyle
             )
             .frame(width: 12, height: 12)
 
@@ -47,7 +50,7 @@ public struct StatusPillView: View {
                 .contentTransition(.interpolate)
         }
         .fixedSize()
-        .animation(.smooth(duration: 0.28), value: animationKey)
+        .animation(statusPillAnimation, value: animationKey)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(text) service")
     }
@@ -55,6 +58,16 @@ public struct StatusPillView: View {
     private var animationKey: String {
         "\(text)-\(showsOrbit)-\(showsGlow)-\(status.rawValue)"
     }
+
+    private var statusPillAnimation: Animation? {
+        deckStyle ? .easeOut(duration: 0.18) : .smooth(duration: 0.28)
+    }
+}
+
+private enum StatusPillDeckTiming {
+    static let orbitPeriod: TimeInterval = 1.05
+    /// ponytail: ~12fps tick — same spin read as repeatForever, less display-link pressure in large grids
+    static let orbitTick: TimeInterval = 1.0 / 12.0
 }
 
 // MARK: - Leading indicator (fixed footprint — avoids layout flicker on state change)
@@ -63,6 +76,7 @@ struct StatusPillLeadingIndicator: View {
     let color: Color
     let showsOrbit: Bool
     let showsGlow: Bool
+    var deckStyle: Bool = false
 
     var body: some View {
         ZStack {
@@ -74,20 +88,44 @@ struct StatusPillLeadingIndicator: View {
             }
 
             if showsOrbit {
-                StatusPillOrbitRing(color: color)
-                    .transition(.opacity)
+                if deckStyle {
+                    StatusPillDeckOrbitRing(color: color)
+                } else {
+                    StatusPillOrbitRing(color: color)
+                }
             }
 
             Circle()
                 .fill(color)
                 .frame(width: 4, height: 4)
         }
-        .animation(.smooth(duration: 0.28), value: showsOrbit)
-        .animation(.smooth(duration: 0.28), value: showsGlow)
+        .animation(deckStyle ? .easeOut(duration: 0.18) : .smooth(duration: 0.28), value: showsOrbit)
+        .animation(deckStyle ? .easeOut(duration: 0.18) : .smooth(duration: 0.28), value: showsGlow)
     }
 }
 
-/// Thin orbit stroke — same visual weight as running halo, no spinner ↔ dot swap.
+/// Deck grid: stepped rotation via TimelineView (visual match, lighter than `repeatForever`).
+private struct StatusPillDeckOrbitRing: View {
+    let color: Color
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: StatusPillDeckTiming.orbitTick)) { timeline in
+            let phase = timeline.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: StatusPillDeckTiming.orbitPeriod)
+            let degrees = (phase / StatusPillDeckTiming.orbitPeriod) * 360
+            Circle()
+                .trim(from: 0.06, to: 0.42)
+                .stroke(
+                    color.opacity(0.85),
+                    style: StrokeStyle(lineWidth: 1.2, lineCap: .round)
+                )
+                .frame(width: 9, height: 9)
+                .rotationEffect(.degrees(degrees))
+        }
+    }
+}
+
+/// Thin orbit stroke — inspector / table (animated).
 private struct StatusPillOrbitRing: View {
     let color: Color
     @State private var isAnimating = false
@@ -158,6 +196,8 @@ public struct KumaActivityIndicator: View {
         StatusPillView(runtime: .init(status: .stopping, isLoading: true))
         StatusPillView(runtime: .init(status: .crashed))
         StatusPillView(runtime: .init(), isDisabled: true)
+        StatusPillView(runtime: .init(status: .starting, isLoading: true), deckStyle: true)
+        StatusPillView(runtime: .init(status: .running), deckStyle: true)
     }
     .padding()
 }

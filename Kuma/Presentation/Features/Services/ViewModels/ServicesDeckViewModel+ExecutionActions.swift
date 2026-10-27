@@ -29,7 +29,13 @@ extension ServicesDeckViewModel {
                 await ServiceExecutionStateSync.applyAfterSuccessfulStart(serviceID: id, stateStore: stateStore)
             } catch {
                 Self.logger.error("Failed to start service \(id): \(error.localizedDescription)")
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                stateStore?.setLastFailureMessage(message, for: id)
                 stateStore?.setExecutionState(.crashed(exitCode: 1), for: id)
+                ServiceStartFailurePresenter.present(
+                    error: error,
+                    serviceName: snapshots.first(where: { $0.id == id })?.name
+                )
             }
         }
 
@@ -54,7 +60,10 @@ extension ServicesDeckViewModel {
                     )
                 } catch {
                     Self.logger.error("Failed to start service \(snapshot.name): \(error.localizedDescription)")
+                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    stateStore?.setLastFailureMessage(message, for: snapshot.id)
                     stateStore?.setExecutionState(.crashed(exitCode: 1), for: snapshot.id)
+                    ServiceStartFailurePresenter.present(error: error, serviceName: snapshot.name)
                 }
 
                 try? await Task.sleep(nanoseconds: 150_000_000)
@@ -89,7 +98,13 @@ extension ServicesDeckViewModel {
                 await ServiceExecutionStateSync.applyAfterSuccessfulStart(serviceID: id, stateStore: stateStore)
             } catch {
                 Self.logger.error("Failed to restart service \(id): \(error.localizedDescription)")
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                stateStore?.setLastFailureMessage(message, for: id)
                 stateStore?.setExecutionState(.crashed(exitCode: 1), for: id)
+                ServiceStartFailurePresenter.present(
+                    error: error,
+                    serviceName: snapshots.first(where: { $0.id == id })?.name
+                )
             }
 
             notifyExecutionStatesChanged()
