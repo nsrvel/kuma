@@ -17,13 +17,6 @@ public actor ExecutionSupervisor {
 
     private let stopGate = ServiceStopGate()
 
-    private struct ReconnectSession {
-        var reconnectAttemptsCompleted: Int = 0
-        var task: Task<Void, Never>?
-    }
-
-    private static let reconnectLogger = Logger(subsystem: "lokastudio.kuma", category: "AutoReconnect")
-    private var reconnectSessions: [UUID: ReconnectSession] = [:]
     private var lastLoggedHealthState: [UUID: ServiceState] = [:]
     private var lastLoggedProcessRunning: [UUID: Bool] = [:]
 
@@ -179,7 +172,7 @@ public actor ExecutionSupervisor {
 
         if intentionalStop {
             await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Stopped (exit \(exitCode)).")
-            cancelReconnect(serviceID: serviceID)
+            await cancelReconnect(serviceID: serviceID)
             records[serviceID] = ExecutionRecord(
                 serviceID: serviceID,
                 serviceName: serviceName,
@@ -194,7 +187,7 @@ public actor ExecutionSupervisor {
             return
         }
 
-        let tookReconnect = await handleAutoReconnectIfNeeded(
+        let tookReconnect = await AutoReconnectCoordinator.shared.handleUnexpectedExit(
             serviceID: serviceID,
             serviceName: serviceName,
             exitCode: exitCode
@@ -252,6 +245,24 @@ public actor ExecutionSupervisor {
         }
     }
 
+    public func finishAutoReconnectExhausted(
+        serviceID: UUID,
+        serviceName: String,
+        exitCode: Int32
+    ) async {
+        let message = "Auto reconnect failed after \(AutoReconnectPolicy.maxAttempts) attempts"
+        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Auto reconnect exhausted")
+        await emitCrashLiveLogLines(serviceID: serviceID, exitCode: exitCode, detail: message)
+        await finalizeManagedProcessCrash(
+            serviceID: serviceID,
+            serviceName: serviceName,
+            exitCode: exitCode,
+            failure: message,
+            notify: true
+        )
+        await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
+    }
+
     public func finalizeManagedProcessCrash(
         serviceID: UUID,
         serviceName: String,
@@ -306,7 +317,7 @@ public actor ExecutionSupervisor {
 
     private func performStop(serviceID: UUID) async {
         await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Stopping service…")
-        cancelReconnect(serviceID: serviceID)
+        await cancelReconnect(serviceID: serviceID)
         if await ProcessRegistry.shared.isRunning(serviceID: serviceID) {
             await ProcessRegistry.shared.stop(serviceID: serviceID)
         }
@@ -491,100 +502,8 @@ public actor ExecutionSupervisor {
         }
     }
 
-    // MARK: - Auto reconnect
-
-    func beginReconnectSession(serviceID: UUID) {
-        reconnectSessions[serviceID]?.task?.cancel()
-        reconnectSessions[serviceID] = ReconnectSession(reconnectAttemptsCompleted: 0, task: nil)
-    }
-
-    func cancelReconnect(serviceID: UUID) {
-        reconnectSessions[serviceID]?.task?.cancel()
-        reconnectSessions.removeValue(forKey: serviceID)
-    }
-
-    func resetReconnectForTests() {
-        for id in Array(reconnectSessions.keys) {
-            cancelReconnect(serviceID: id)
-        }
-    }
-
-    /// Returns true when reconnect handling took over (no immediate terminal crash UI).
-    func handleAutoReconnectIfNeeded(
-        serviceID: UUID,
-        serviceName: String,
-        exitCode: Int32
-    ) async -> Bool {
-        guard let provider = await ServiceExecutionEngine.shared.activeProvider(for: serviceID) else { return false }
-        guard provider.isAutoReconnectEnabled else { return false }
-
-        var session = reconnectSessions[serviceID] ?? ReconnectSession()
-        if session.reconnectAttemptsCompleted >= AutoReconnectPolicy.maxAttempts {
-            await finishReconnectExhausted(
-                serviceID: serviceID,
-                serviceName: serviceName,
-                exitCode: exitCode,
-                session: &session
-            )
-            return true
-        }
-
-        session.reconnectAttemptsCompleted += 1
-        let attempt = session.reconnectAttemptsCompleted
-        reconnectSessions[serviceID] = session
-
-        setManagedProcessReconnecting(
-            serviceID: serviceID,
-            serviceName: serviceName,
-            attempt: attempt,
-            maxAttempts: AutoReconnectPolicy.maxAttempts
-        )
-
-        session.task?.cancel()
-        session.task = Task {
-            let delay = AutoReconnectPolicy.backoffNanoseconds(attempt: attempt)
-            try? await Task.sleep(nanoseconds: delay)
-            guard !Task.isCancelled else { return }
-            do {
-                try await ServiceExecutionEngine.shared.start(serviceID: serviceID)
-            } catch {
-                Self.reconnectLogger.warning(
-                    "Auto reconnect attempt \(attempt, privacy: .public) failed for \(serviceName, privacy: .public): \(error.localizedDescription, privacy: .public)"
-                )
-                await LiveLogSystemEmitter.emit(
-                    serviceID: serviceID,
-                    message: "Reconnect attempt \(attempt) failed: \(error.localizedDescription)"
-                )
-                _ = await ExecutionSupervisor.shared.handleAutoReconnectIfNeeded(
-                    serviceID: serviceID,
-                    serviceName: serviceName,
-                    exitCode: exitCode
-                )
-            }
-        }
-        reconnectSessions[serviceID] = session
-        return true
-    }
-
-    private func finishReconnectExhausted(
-        serviceID: UUID,
-        serviceName: String,
-        exitCode: Int32,
-        session: inout ReconnectSession
-    ) async {
-        session.task?.cancel()
-        reconnectSessions.removeValue(forKey: serviceID)
-        let message = "Auto reconnect failed after \(AutoReconnectPolicy.maxAttempts) attempts"
-        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Auto reconnect exhausted")
-        await emitCrashLiveLogLines(serviceID: serviceID, exitCode: exitCode, detail: message)
-        await finalizeManagedProcessCrash(
-            serviceID: serviceID,
-            serviceName: serviceName,
-            exitCode: exitCode,
-            failure: message,
-            notify: true
-        )
-        await LiveLogSystemEmitter.endCapture(serviceID: serviceID)
+    func cancelReconnect(serviceID: UUID) async {
+        await AutoReconnectCoordinator.shared.cancel(serviceID: serviceID)
     }
 
     private func emitCrashLiveLogLines(serviceID: UUID, exitCode: Int32, detail: String?) async {

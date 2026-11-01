@@ -24,6 +24,9 @@ struct KumaApp: App {
                         RunSpool.purgeAll()
                     }
                     serviceStateStore.bindExecutionSupervisor()
+                    Task { @MainActor in
+                        await AutoReconnectCoordinator.shared.configure(stateStore: serviceStateStore)
+                    }
                 }
         }
         .defaultSize(width: 1100, height: 750)

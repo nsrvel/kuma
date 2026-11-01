@@ -90,7 +90,7 @@ public final class ServiceExecutionEngine: Sendable {
         let runner = runner(for: provider.type)
         do {
             try await runner.start(service: service, provider: provider)
-            await ExecutionSupervisor.shared.beginReconnectSession(serviceID: serviceID)
+            await AutoReconnectCoordinator.shared.resetSession(serviceID: serviceID)
         } catch {
             let description = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Start failed: \(description)")

@@ -35,11 +35,10 @@ extension ServiceInspectorViewModel {
                 if wasRunning {
                     guard await validateConfigurationForStart() else { return }
                     configurationIssues = []
-                    stateStore?.setExecutionState(.starting, for: serviceID)
-                    try await ServiceExecutionEngine.shared.start(serviceID: serviceID)
-                    await ServiceExecutionStateSync.applyAfterSuccessfulStart(
+                    _ = await ServiceStartSupport.start(
                         serviceID: serviceID,
-                        stateStore: stateStore
+                        stateStore: stateStore,
+                        context: .userInitiated(serviceName: srv.name)
                     )
                 }
             } catch {

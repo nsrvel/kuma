@@ -23,20 +23,12 @@ extension ServicesDeckViewModel {
             stateStore?.setExecutionState(.stopping, for: id)
             await ServiceStopSupport.stopOffMainActor(serviceID: id, stateStore: stateStore)
         } else {
-            stateStore?.setExecutionState(.starting, for: id)
-            do {
-                try await ServiceExecutionEngine.shared.start(serviceID: id)
-                await ServiceExecutionStateSync.applyAfterSuccessfulStart(serviceID: id, stateStore: stateStore)
-            } catch {
-                Self.logger.error("Failed to start service \(id): \(error.localizedDescription)")
-                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                stateStore?.setLastFailureMessage(message, for: id)
-                stateStore?.setExecutionState(.crashed(exitCode: 1), for: id)
-                ServiceStartFailurePresenter.present(
-                    error: error,
-                    serviceName: snapshots.first(where: { $0.id == id })?.name
-                )
-            }
+            let serviceName = snapshots.first(where: { $0.id == id })?.name
+            _ = await ServiceStartSupport.start(
+                serviceID: id,
+                stateStore: stateStore,
+                context: .userInitiated(serviceName: serviceName)
+            )
         }
 
         notifyExecutionStatesChanged()
@@ -51,20 +43,11 @@ extension ServicesDeckViewModel {
             for snapshot in targetSnapshots {
                 guard !isOperational(snapshot.id) else { continue }
 
-                stateStore?.setExecutionState(.starting, for: snapshot.id)
-                do {
-                    try await ServiceExecutionEngine.shared.start(serviceID: snapshot.id)
-                    await ServiceExecutionStateSync.applyAfterSuccessfulStart(
-                        serviceID: snapshot.id,
-                        stateStore: stateStore
-                    )
-                } catch {
-                    Self.logger.error("Failed to start service \(snapshot.name): \(error.localizedDescription)")
-                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    stateStore?.setLastFailureMessage(message, for: snapshot.id)
-                    stateStore?.setExecutionState(.crashed(exitCode: 1), for: snapshot.id)
-                    ServiceStartFailurePresenter.present(error: error, serviceName: snapshot.name)
-                }
+                _ = await ServiceStartSupport.start(
+                    serviceID: snapshot.id,
+                    stateStore: stateStore,
+                    context: .userInitiated(serviceName: snapshot.name)
+                )
 
                 try? await Task.sleep(nanoseconds: 150_000_000)
             }
@@ -92,20 +75,12 @@ extension ServicesDeckViewModel {
             await ServiceStopSupport.stopOffMainActor(serviceID: id, stateStore: stateStore)
             try? await Task.sleep(nanoseconds: 300_000_000)
 
-            stateStore?.setExecutionState(.starting, for: id)
-            do {
-                try await ServiceExecutionEngine.shared.start(serviceID: id)
-                await ServiceExecutionStateSync.applyAfterSuccessfulStart(serviceID: id, stateStore: stateStore)
-            } catch {
-                Self.logger.error("Failed to restart service \(id): \(error.localizedDescription)")
-                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                stateStore?.setLastFailureMessage(message, for: id)
-                stateStore?.setExecutionState(.crashed(exitCode: 1), for: id)
-                ServiceStartFailurePresenter.present(
-                    error: error,
-                    serviceName: snapshots.first(where: { $0.id == id })?.name
-                )
-            }
+            let serviceName = snapshots.first(where: { $0.id == id })?.name
+            _ = await ServiceStartSupport.start(
+                serviceID: id,
+                stateStore: stateStore,
+                context: .userInitiated(serviceName: serviceName)
+            )
 
             notifyExecutionStatesChanged()
         }

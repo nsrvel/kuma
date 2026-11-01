@@ -25,20 +25,11 @@ extension ServiceInspectorViewModel {
                 return
             }
             configurationIssues = []
-            stateStore?.setExecutionState(.starting, for: serviceID)
-            do {
-                try await ServiceExecutionEngine.shared.start(serviceID: serviceID)
-                await ServiceExecutionStateSync.applyAfterSuccessfulStart(
-                    serviceID: serviceID,
-                    stateStore: stateStore
-                )
-            } catch {
-                Self.logger.error("Failed to start service \(self.serviceID): \(error.localizedDescription)")
-                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                stateStore?.setLastFailureMessage(message, for: serviceID)
-                stateStore?.setExecutionState(.crashed(exitCode: 1), for: serviceID)
-                ServiceStartFailurePresenter.present(error: error, serviceName: service?.name)
-            }
+            _ = await ServiceStartSupport.start(
+                serviceID: serviceID,
+                stateStore: stateStore,
+                context: .userInitiated(serviceName: service?.name)
+            )
             postUpdatedNotification()
         }
     }

@@ -109,4 +109,12 @@ struct AutoReconnectWorkloadTests {
         await ExecutionSupervisor.shared.cancelReconnect(serviceID: serviceID)
         await ExecutionSupervisor.shared.unregister(serviceID: serviceID)
     }
+
+    @Test("AutoReconnect: cancel clears coordinator session")
+    func testCoordinatorCancel() async {
+        let serviceID = UUID()
+        await AutoReconnectCoordinator.shared.resetSession(serviceID: serviceID)
+        await AutoReconnectCoordinator.shared.cancel(serviceID: serviceID)
+        #expect(await ExecutionSupervisor.shared.hasActiveWorkload(serviceID: serviceID) == false)
+    }
 }
