@@ -4,7 +4,7 @@ import SwiftUI
 
 /// Typography for inspector system activity log (bundled JetBrains Mono Nerd Font).
 public enum KumaLogFont {
-    private static var didRegisterBundledFont = false
+    nonisolated(unsafe) private static var didRegisterBundledFont = false
     /// PostScript name after ATSApplicationFontsPath registration.
     public static let nerdPostScriptName = "JetBrainsMonoNF-Regular"
     private static let messageSize: CGFloat = 11
@@ -13,8 +13,8 @@ public enum KumaLogFont {
     private static let fallbackMessage = Font.system(size: messageSize, weight: .regular, design: .monospaced)
     private static let fallbackTimestamp = Font.system(size: timestampSize, weight: .regular, design: .monospaced)
 
-    private static var resolvedMessage: Font?
-    private static var resolvedTimestamp: Font?
+    nonisolated(unsafe) private static var resolvedMessage: Font?
+    nonisolated(unsafe) private static var resolvedTimestamp: Font?
 
     public static var logMessage: Font {
         if let resolvedMessage { return resolvedMessage }

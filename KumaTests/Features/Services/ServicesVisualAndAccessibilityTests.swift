@@ -89,6 +89,11 @@ struct ServicesVisualAndAccessibilityTests {
 
         let completed = await SubprocessWait.waitForExit(of: process, timeout: 0.25)
         #expect(completed == false)
+        if process.isRunning {
+            for _ in 0..<40 where process.isRunning {
+                try? await Task.sleep(nanoseconds: 25_000_000)
+            }
+        }
         #expect(process.isRunning == false)
     }
 
