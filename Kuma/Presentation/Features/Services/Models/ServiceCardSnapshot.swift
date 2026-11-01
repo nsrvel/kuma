@@ -59,6 +59,19 @@ public nonisolated struct ServiceCardSnapshot: Identifiable, Sendable, Equatable
         copy.isStarred = starred
         return copy
     }
+
+    /// Case-insensitive substring match against indexed fields and live Kubernetes target names.
+    public nonisolated func matchesSearchQuery(_ query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmed.isEmpty else { return true }
+        if searchKey.contains(trimmed) { return true }
+        if providerCategory == .kubernetes,
+           let live = KubeLiveTargetDisplay.resolvedName(for: id)?.lowercased(),
+           live.contains(trimmed) {
+            return true
+        }
+        return false
+    }
 }
 
 extension ServiceCardSnapshot {

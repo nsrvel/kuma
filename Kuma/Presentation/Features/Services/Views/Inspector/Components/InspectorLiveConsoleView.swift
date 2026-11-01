@@ -1,65 +1,77 @@
 import SwiftUI
 
-/// Minimal live log lines for Service Inspector (reset baseline — no chrome).
+/// System activity log for Service Inspector (read-only buffer).
 public struct InspectorLiveConsoleView: View {
     public let serviceID: UUID
-    public let service: Service
-    public let provider: Provider
     public let isRunning: Bool
+    public var lastFailure: String?
+    public var configurationMessages: [String]
 
-    @Bindable private var session = LiveLogSession.shared
+    @State private var session = LiveLogSession.shared
 
     public init(
         serviceID: UUID,
-        service: Service,
-        provider: Provider,
-        isRunning: Bool
+        isRunning: Bool,
+        lastFailure: String? = nil,
+        configurationMessages: [String] = []
     ) {
         self.serviceID = serviceID
-        self.service = service
-        self.provider = provider
         self.isRunning = isRunning
+        self.lastFailure = lastFailure
+        self.configurationMessages = configurationMessages
     }
 
-    private var lines: [LiveLogSession.LiveLogLine] {
-        guard session.bufferedServiceID == serviceID else { return [] }
-        return session.lines
+    private var logSnapshot: LiveLogSession.ServiceSnapshot {
+        session.snapshot(for: serviceID)
     }
 
     public var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(lines) { line in
-                    Text(line.text)
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        let snapshot = logSnapshot
+        Group {
+            if snapshot.lines.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No activity yet")
+                        .font(KumaFont.title3)
+                    Text(isRunning
+                         ? "System messages for this run will appear here."
+                         : "Start the service to see activity, or open after a run to review the last log.")
+                        .font(KumaFont.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(KumaSpacing.lg)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(snapshot.lines) { line in
+                            SystemActivityLogRow(line: line)
+                        }
+                    }
+                    .padding(.horizontal, KumaSpacing.lg)
+                    .padding(.vertical, KumaSpacing.sm)
                 }
             }
-            .padding(.horizontal, KumaSpacing.lg)
-            .padding(.vertical, KumaSpacing.sm)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task(id: LiveLogStreamKey(serviceID: serviceID, isRunning: isRunning)) {
-            guard isRunning else {
-                session.stop()
-                return
+        .onAppear {
+            session.markRecentlyUsed(serviceID: serviceID)
+            session.syncBannerContext(
+                serviceID: serviceID,
+                lastFailure: lastFailure,
+                configurationMessages: configurationMessages
+            )
+        }
+        .onChange(of: lastFailure) { _, newValue in
+            guard let newValue else { return }
+            Task { @MainActor in
+                session.recordBannerFailure(serviceID: serviceID, message: newValue)
             }
-            session.start(serviceID: serviceID, service: service, provider: provider)
-            defer {
-                session.stop()
-                if session.bufferedServiceID == serviceID {
-                    session.clear()
-                }
-            }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
+        }
+        .onChange(of: configurationMessages) { _, newValue in
+            Task { @MainActor in
+                session.recordConfigurationIssues(serviceID: serviceID, messages: newValue)
             }
         }
     }
-}
-
-private struct LiveLogStreamKey: Hashable {
-    let serviceID: UUID
-    let isRunning: Bool
 }

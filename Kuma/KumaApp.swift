@@ -17,11 +17,16 @@ struct KumaApp: App {
                 .environment(serviceStateStore)
                 .kumaMainWorkspaceChrome()
                 .onAppear {
+                    KumaLogFont.registerBundledFonts()
+                    SystemActivityLogRecording.install(LiveLogRecordingBridge())
                     appDelegate.serviceStateStore = serviceStateStore
                     if !SingleInstanceGuard.isTestingEnvironment {
                         RunSpool.purgeAll()
                     }
                     serviceStateStore.bindExecutionSupervisor()
+                    Task { @MainActor in
+                        await AutoReconnectCoordinator.shared.configure(stateStore: serviceStateStore)
+                    }
                 }
         }
         .defaultSize(width: 1100, height: 750)

@@ -5,15 +5,21 @@ public struct WorkspaceAvatarView: View {
     public let name: String
     public let imagePath: String?
     public let size: CGFloat
+    /// Busts SwiftUI caching when the workspace row updates but `imagePath` stays `{id}.png`.
+    private let imageRefreshToken: TimeInterval?
 
     public init(name: String, imagePath: String? = nil, size: CGFloat = 24) {
         self.name = name
         self.imagePath = imagePath
         self.size = size
+        self.imageRefreshToken = nil
     }
 
     public init(workspace: Workspace, size: CGFloat = 24) {
-        self.init(name: workspace.name, imagePath: workspace.imagePath, size: size)
+        self.name = workspace.name
+        self.imagePath = workspace.imagePath
+        self.size = size
+        self.imageRefreshToken = workspace.updatedAt.timeIntervalSince1970
     }
 
     public var body: some View {
@@ -33,6 +39,7 @@ public struct WorkspaceAvatarView: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        .id(imageRefreshToken.map { "\(imagePath ?? "")-\($0)" } ?? imagePath)
     }
 
     private func cachedImage(from path: String) -> NSImage? {

@@ -34,6 +34,15 @@ public final class ShellRunner: ServiceRunnerProtocol, @unchecked Sendable {
 
         let launch = KumaShellLaunchConfiguration.launchSpec(runCommand: runCommand)
 
+        if let resolvedDir {
+            await LiveLogSystemEmitter.emit(
+                serviceID: service.id,
+                message: "Launching shell command (cwd: \(resolvedDir))…"
+            )
+        } else {
+            await LiveLogSystemEmitter.emit(serviceID: service.id, message: "Launching shell command…")
+        }
+
         _ = try await processRegistry.launch(
             serviceID: service.id,
             serviceName: service.name,

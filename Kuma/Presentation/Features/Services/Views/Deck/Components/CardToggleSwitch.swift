@@ -36,7 +36,7 @@ public struct CardToggleSwitch: View {
             .labelsHidden()
             .accessibilityLabel(isRunning ? "Stop service" : "Start service")
             .accessibilityValue(isRunning ? "Running" : "Stopped")
-            .disabled(runtime.isLoading || runtime.status == .starting || runtime.status == .stopping || runtime.status == .reconnecting)
+            .disabled(runtime.isLoading || runtime.status == .starting || runtime.status == .stopping)
         }
     }
 }

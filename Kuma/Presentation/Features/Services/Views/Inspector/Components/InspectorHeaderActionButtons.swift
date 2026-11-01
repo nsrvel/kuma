@@ -17,16 +17,23 @@ public struct InspectorHeaderActionButton: View {
 
     public var body: some View {
         let showsStop = showsStopChrome(for: runtime.status)
-        let isBusy = runtime.isLoading || runtime.status == .starting || runtime.status == .stopping || runtime.status == .reconnecting
+        let showsBusyIndicator = runtime.status == .starting
+            || runtime.status == .stopping
+            || runtime.status == .reconnecting
+        let blocksStart = runtime.isLoading
+            || runtime.status == .starting
+            || runtime.status == .stopping
+            || runtime.status == .reconnecting
         let startBlocked = !showsStop && isStartDisabled
+        let interactionBlocked = showsStop ? false : (blocksStart || startBlocked)
 
         Button {
-            guard !isBusy, !startBlocked else { return }
+            guard !interactionBlocked else { return }
             KumaHapticManager.shared.tap()
             onToggle()
         } label: {
             HStack(spacing: 5) {
-                if isBusy {
+                if showsBusyIndicator {
                     KumaActivityIndicator(size: 11, color: .white, lineWidth: 1.5)
                 }
                 Text(showsStop ? "Stop" : "Start")
@@ -36,11 +43,11 @@ public struct InspectorHeaderActionButton: View {
         }
         .buttonStyle(KumaPrimaryButtonStyle.inspectorToggle(isRunning: showsStop))
         .opacity(startBlocked ? 0.45 : 1)
-        .allowsHitTesting(!isBusy && !startBlocked)
+        .allowsHitTesting(!interactionBlocked)
         .help(startBlocked ? "Fix configuration issues before starting" : "")
         .padding(.trailing, 8)
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
-        .animation(isBusy ? nil : .easeInOut(duration: 0.18), value: showsStop)
+        .animation(showsBusyIndicator ? nil : .easeInOut(duration: 0.18), value: showsStop)
     }
 
     private func showsStopChrome(for status: ServiceState) -> Bool {

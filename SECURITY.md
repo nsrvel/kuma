@@ -4,7 +4,7 @@
 
 Please **do not** open a public GitHub issue for security-sensitive reports.
 
-Use [GitHub Private Vulnerability Reporting](https://github.com/nsrvel/Kuma/security/advisories/new) for this repository, or contact the maintainer through GitHub with details to coordinate a private advisory.
+Use [GitHub Private Vulnerability Reporting](https://github.com/nsrvel/kuma/security/advisories/new) for this repository, or contact the maintainer through GitHub with details to coordinate a private advisory.
 
 ## Scope
 
@@ -20,4 +20,4 @@ Out of scope: social engineering, physical access to an unlocked Mac, or vulnera
 
 ## Supported versions
 
-Security fixes are intended for the **latest release** on [GitHub Releases](https://github.com/nsrvel/Kuma/releases). Build from `main` at your own risk between releases.
+Security fixes are intended for the **latest release** on [GitHub Releases](https://github.com/nsrvel/kuma/releases). Build from `main` at your own risk between releases.

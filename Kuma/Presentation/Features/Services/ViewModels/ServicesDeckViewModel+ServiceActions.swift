@@ -35,7 +35,8 @@ extension ServicesDeckViewModel {
             providerCategory: old.providerCategory,
             portDisplays: old.portDisplays,
             providerOptions: old.providerOptions,
-            createdAt: old.createdAt
+            createdAt: old.createdAt,
+            searchKey: old.searchKey
         )
 
         if newDisabled {
@@ -112,7 +113,8 @@ extension ServicesDeckViewModel {
             providerCategory: old.providerCategory,
             portDisplays: old.portDisplays,
             providerOptions: old.providerOptions,
-            createdAt: old.createdAt
+            createdAt: old.createdAt,
+            searchKey: old.searchKey
         )
 
         if filterGroupID != nil {
@@ -135,9 +137,10 @@ extension ServicesDeckViewModel {
         guard let original = snapshots.first(where: { $0.id == id }) else { return }
 
         let newServiceID = UUID()
+        let copyName = "\(original.name) (Copy)"
         let optimisticSnapshot = ServiceCardSnapshot(
             id: newServiceID,
-            name: "\(original.name) (Copy)",
+            name: copyName,
             groupIDs: original.groupIDs,
             isDisabled: original.isDisabled,
             isStarred: original.isStarred,
@@ -145,7 +148,8 @@ extension ServicesDeckViewModel {
             providerCategory: original.providerCategory,
             portDisplays: original.portDisplays,
             providerOptions: original.providerOptions,
-            createdAt: Date()
+            createdAt: Date(),
+            searchKey: Self.duplicateSearchKey(from: original.searchKey, originalName: original.name, copyName: copyName)
         )
 
         withAnimation(.spring(response: 0.24, dampingFraction: 0.88)) {

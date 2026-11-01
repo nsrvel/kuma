@@ -35,16 +35,22 @@ extension ServiceInspectorViewModel {
                 if wasRunning {
                     guard await validateConfigurationForStart() else { return }
                     configurationIssues = []
-                    stateStore?.setExecutionState(.starting, for: serviceID)
-                    try await ServiceExecutionEngine.shared.start(serviceID: serviceID)
-                    await ServiceExecutionStateSync.applyAfterSuccessfulStart(
+                    _ = await ServiceStartSupport.start(
                         serviceID: serviceID,
-                        stateStore: stateStore
+                        stateStore: stateStore,
+                        context: .userInitiated(serviceName: srv.name)
                     )
                 }
             } catch {
                 Self.logger.error("Failed to switch active provider for service \(srv.id): \(error.localizedDescription)")
-                stateStore?.clearStoppingIfStillPending(for: serviceID)
+                if wasRunning, error is ServiceExecutionError {
+                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    stateStore?.setLastFailureMessage(message, for: serviceID)
+                    stateStore?.setExecutionState(.crashed(exitCode: 1), for: serviceID)
+                } else {
+                    stateStore?.clearStoppingIfStillPending(for: serviceID)
+                }
+                ServiceStartFailurePresenter.present(error: error, serviceName: srv.name)
             }
         }
     }

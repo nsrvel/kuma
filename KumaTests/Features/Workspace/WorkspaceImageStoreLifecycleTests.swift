@@ -101,6 +101,27 @@ struct WorkspaceImageStoreLifecycleTests {
         #expect(WorkspaceImageStore.shared.thumbnail(for: fileName) == nil)
     }
 
+    // MARK: - [TC-D06b] Replacing image at same filename invalidates thumbnail cache
+    @Test("TC-D06b: saving a new image over the same workspace file returns a fresh thumbnail")
+    func testReplaceImageInvalidatesThumbnailCache() throws {
+        let harness = WorkspaceTestHarness()
+        defer { harness.cleanup() }
+
+        let sample1 = harness.createSampleImage(width: 40, height: 40)
+        let sample2 = harness.createSampleImage(width: 120, height: 120)
+        let id = UUID()
+        let sidebarMaxDimension = KumaTheme.Sidebar.workspaceIconSize * 2
+
+        let fileName = try #require(WorkspaceImageStore.shared.saveWorkspaceImage(from: sample1, workspaceID: id))
+        defer { WorkspaceImageStore.shared.deleteImage(for: fileName) }
+
+        let thumbBefore = try #require(WorkspaceImageStore.shared.thumbnail(for: fileName, maxDimension: sidebarMaxDimension))
+        _ = WorkspaceImageStore.shared.saveWorkspaceImage(from: sample2, workspaceID: id)
+        let thumbAfter = try #require(WorkspaceImageStore.shared.thumbnail(for: fileName, maxDimension: sidebarMaxDimension))
+
+        #expect(thumbBefore !== thumbAfter)
+    }
+
     // MARK: - [TC-D06] Updating workspace with new avatar deletes old file
     @Test("TC-D06: updateWorkspace cleans up previous custom avatar to prevent storage leaks")
     func testUpdatingWorkspaceWithNewAvatarDeletesOldFile() throws {

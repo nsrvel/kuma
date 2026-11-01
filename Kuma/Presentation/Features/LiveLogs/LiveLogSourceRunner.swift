@@ -1,5 +1,7 @@
 import Foundation
 
+/// Tails workload output (kubectl logs, compose logs, process spool).
+/// Not used by the inspector system-log panel; reserved for provider-specific workload windows.
 enum LiveLogSourceRunner {
     static func run(
         serviceID: UUID,

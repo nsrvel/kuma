@@ -160,6 +160,7 @@ public actor ProcessRegistry {
         await ExecutionSupervisor.shared.register(
             .managedProcess(serviceID: serviceID, serviceName: serviceName, pid: pid, startedAt: startedAt)
         )
+        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Process running (PID \(pid))")
 
         // Setup clean termination observer
         process.terminationHandler = { [weak self] proc in
@@ -201,6 +202,7 @@ public actor ProcessRegistry {
         await ExecutionSupervisor.shared.register(
             .managedProcess(serviceID: serviceID, serviceName: serviceName, pid: pid, startedAt: startedAt)
         )
+        await LiveLogSystemEmitter.emit(serviceID: serviceID, message: "Process running (PID \(pid))")
 
         adoptedMonitorTasks[serviceID] = Task { [weak self] in
             while !Task.isCancelled {

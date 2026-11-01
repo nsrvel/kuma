@@ -1,12 +1,12 @@
 # Kuma
 
-[![CI](https://github.com/nsrvel/Kuma/actions/workflows/ci.yml/badge.svg)](https://github.com/nsrvel/Kuma/actions/workflows/ci.yml)
+[![CI](https://github.com/nsrvel/kuma/actions/workflows/ci.yml/badge.svg)](https://github.com/nsrvel/kuma/actions/workflows/ci.yml)
 
 Native macOS app for managing local development services — Kubernetes port-forwards, Docker/Podman, shell, SSH tunnels, health checks, and more — organized by workspace.
 
 ![Kuma service deck with inspector](docs/images/kuma-deck-screenshot.png)
 
-**Distribution:** [GitHub Releases](https://github.com/nsrvel/Kuma/releases) (not the Mac App Store). DMGs are **not** committed to git (`dist/` is ignored); download binaries from the Releases page.
+**Distribution:** [GitHub Releases](https://github.com/nsrvel/kuma/releases) (not the Mac App Store). DMGs are **not** committed to git (`dist/` is ignored); download binaries from the Releases page.
 
 **Demo workspace for screenshots:** import [`docs/samples/Kuma-Screenshot-Demo.json`](docs/samples/Kuma-Screenshot-Demo.json) via drag-and-drop or deck import (all provider types, fake hosts).
 
@@ -19,14 +19,14 @@ Optional CLI tools (detected at runtime): `kubectl`, `docker`, `podman`, `ssh`, 
 
 ## Install (recommended)
 
-1. Open [Releases](https://github.com/nsrvel/Kuma/releases) and download the latest `Kuma-x.y.dmg`.
+1. Open [Releases](https://github.com/nsrvel/kuma/releases) and download the latest `Kuma-x.y.dmg`.
 2. Open the DMG and drag **Kuma** to **Applications**.
 3. First launch: official releases from tags with signing secrets configured should open without Gatekeeper warnings. Ad-hoc CI/local DMGs may still require **Open Anyway** in **System Settings → Privacy & Security**.
 
 ## Build from source
 
 ```bash
-git clone https://github.com/nsrvel/Kuma.git
+git clone https://github.com/nsrvel/kuma.git
 cd Kuma
 open Kuma.xcodeproj
 # Run (⌘R) or:
@@ -51,7 +51,7 @@ make dmg
 
 CI runs on every push/PR to `main` (build + test on **macOS 15** with **Xcode 16**).
 
-To ship a DMG to [Releases](https://github.com/nsrvel/Kuma/releases), push a version tag:
+To ship a DMG to [Releases](https://github.com/nsrvel/kuma/releases), push a version tag:
 
 ```bash
 git tag v1.0.0   # match CFBundleShortVersionString when possible

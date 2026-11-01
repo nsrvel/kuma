@@ -14,6 +14,8 @@ public nonisolated final class WorkspaceImageStore: @unchecked Sendable {
     // NSCache is thread-safe per Apple's docs. Stored as nonisolated(unsafe)
     // because our class is @unchecked Sendable and we guarantee safe usage.
     nonisolated(unsafe) private let cache = NSCache<NSString, NSImage>()
+    private let revisionLock = NSLock()
+    nonisolated(unsafe) private var imageRevisions: [String: UInt64] = [:]
 
     private init() {
         cache.countLimit = 100
@@ -135,7 +137,9 @@ public nonisolated final class WorkspaceImageStore: @unchecked Sendable {
             return nil
         }
 
-        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, nil) else {
+        // Load from bytes so ImageIO does not serve a stale decoded image after the file is replaced in place.
+        guard let data = try? Data(contentsOf: fileURL),
+              let imageSource = CGImageSourceCreateWithData(data as CFData, nil) else {
             return nil
         }
 
@@ -156,16 +160,22 @@ public nonisolated final class WorkspaceImageStore: @unchecked Sendable {
     }
 
     private nonisolated func cacheKey(for filePath: String, maxDimension: CGFloat) -> NSString {
-        "\(filePath)-\(Int(maxDimension))" as NSString
+        let revision = revision(forFilePath: filePath)
+        return "\(filePath)-\(Int(maxDimension))-r\(revision)" as NSString
     }
 
+    private nonisolated func revision(forFilePath filePath: String) -> UInt64 {
+        revisionLock.lock()
+        defer { revisionLock.unlock() }
+        return imageRevisions[filePath] ?? 0
+    }
+
+    /// Bumps revision so every thumbnail size misses NSCache after the on-disk file changes.
     private nonisolated func evictCache(for fileNameOrPath: String) {
-        let fileURL = resolveURL(for: fileNameOrPath)
-        let filePath = fileURL.path(percentEncoded: false)
-        for dimension in [24, 32, 48, 64, 80, 128, 256, 512] {
-            cache.removeObject(forKey: cacheKey(for: filePath, maxDimension: CGFloat(dimension)))
-        }
-        cache.removeObject(forKey: fileNameOrPath as NSString)
+        let filePath = resolveURL(for: fileNameOrPath).path(percentEncoded: false)
+        revisionLock.lock()
+        imageRevisions[filePath] = (imageRevisions[filePath] ?? 0) + 1
+        revisionLock.unlock()
     }
 
     /// Resolves filename or legacy absolute path to a valid URL
@@ -185,6 +195,9 @@ public nonisolated final class WorkspaceImageStore: @unchecked Sendable {
 
     /// Clears the memory cache
     public nonisolated func clearCache() {
+        revisionLock.lock()
+        imageRevisions.removeAll()
+        revisionLock.unlock()
         cache.removeAllObjects()
     }
 }

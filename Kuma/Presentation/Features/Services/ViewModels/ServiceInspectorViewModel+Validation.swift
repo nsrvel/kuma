@@ -49,6 +49,18 @@ extension ServiceInspectorViewModel {
         )
     }
 
+    func logBlockingConfigurationIssuesToActivity() async {
+        let blocking = configurationIssues
+            .filter { $0.severity == .blocking }
+            .map(\.message)
+        guard !blocking.isEmpty else { return }
+        await LiveLogSystemEmitter.recordConfigurationIssues(serviceID: serviceID, messages: blocking)
+        await LiveLogSystemEmitter.emit(
+            serviceID: serviceID,
+            message: "Start blocked: fix configuration issues above."
+        )
+    }
+
     private func refreshKubernetesTargetValidation() async {
         guard let provider = activeProvider, provider.type == .kubernetes else {
             kubeAsyncValidationMessage = nil
