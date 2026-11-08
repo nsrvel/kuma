@@ -10,6 +10,7 @@ mod legacy_import;
 mod logs;
 mod migrate;
 mod provider;
+mod runtime_process;
 mod schema;
 mod sec;
 mod seed;
@@ -43,10 +44,11 @@ pub use provider::ProviderStore;
 pub use service::ServiceStore;
 pub use settings::{ChangeEvent, RecordingChangeSink, SettingsStore, REGISTRY, RESET_KEYS};
 pub use workspace::WorkspaceStore;
+pub use runtime_process::RuntimeProcessStore;
 pub use dataport::DataPort;
 pub use kubeconfig::KubeConfigStore;
 pub use logs::LogBuffer;
-pub use sec::{api_token_path, ensure_api_token, rotate_api_token, Vault};
+pub use sec::{api_token_path, ensure_api_token, rotate_api_token, AuditLog, Vault};
 
 pub type SqliteMasterRow = (String, String, String, Option<String>);
 
@@ -67,6 +69,8 @@ pub struct StoreHandle {
     logs: LogBuffer,
     dataport: DataPort,
     vault: Vault,
+    audit: AuditLog,
+    runtime_process: RuntimeProcessStore,
     schema_migrations: Vec<String>,
     instance_id: String,
 }
@@ -128,6 +132,10 @@ impl StoreHandle {
         let dataport = DataPort::new(Arc::clone(&kuma), data_dir.to_path_buf());
         let _ = ensure_api_token(data_dir);
         let logs = LogBuffer::new();
+        let audit = AuditLog::open(data_dir).map_err(|e| StoreError::DbOpenFailed {
+            detail: format!("audit.log: {e}"),
+        })?;
+        let runtime_process = RuntimeProcessStore::new(&daemon_state);
 
         Ok(Self {
             kuma_path,
@@ -145,6 +153,8 @@ impl StoreHandle {
             logs,
             dataport,
             vault,
+            audit,
+            runtime_process,
             schema_migrations,
             instance_id,
         })
@@ -204,6 +214,14 @@ impl StoreHandle {
 
     pub fn vault(&self) -> &Vault {
         &self.vault
+    }
+
+    pub fn audit(&self) -> &AuditLog {
+        &self.audit
+    }
+
+    pub fn runtime_process(&self) -> &RuntimeProcessStore {
+        &self.runtime_process
     }
 
     pub fn data_dir(&self) -> &Path {

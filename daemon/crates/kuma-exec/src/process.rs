@@ -14,11 +14,17 @@ pub fn spawn_managed(
     cmd: Command,
     is_reconnect: bool,
 ) -> Result<(), ExecError> {
+    if matches!(
+        engine.snapshot(service_id).status.as_str(),
+        "running" | "starting" | "reconnecting"
+    ) {
+        return Err(ExecError::AlreadyRunning);
+    }
     if !is_reconnect {
         engine.reset_reconnect_budget(service_id);
-    }
-    if engine.snapshot(service_id).status == "running" {
-        return Err(ExecError::AlreadyRunning);
+        engine.set_starting(service_id);
+    } else {
+        engine.set_reconnecting(service_id);
     }
     let mut command = cmd;
     command.stdin(Stdio::null());

@@ -14,17 +14,17 @@ pub struct RunRecord {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeSnapshot {
-    pub status: &'static str,
+    pub status: String,
     pub is_loading: bool,
-    pub status_title: &'static str,
+    pub status_title: String,
 }
 
 impl Default for RuntimeSnapshot {
     fn default() -> Self {
         Self {
-            status: "stopped",
+            status: "stopped".into(),
             is_loading: false,
-            status_title: "Stopped",
+            status_title: "Stopped".into(),
         }
     }
 }
@@ -45,6 +45,7 @@ pub struct ExecEngine {
     categories: Mutex<HashMap<String, String>>,
     logs: Mutex<HashMap<String, Vec<String>>>,
     adopted: Mutex<u64>,
+    released: Mutex<u64>,
     run_records: Mutex<HashMap<String, RunRecord>>,
     log_sink: Mutex<Option<Arc<LogSink>>>,
     reconnect_budget: Mutex<HashMap<String, u8>>,
@@ -58,6 +59,7 @@ impl ExecEngine {
             categories: Mutex::new(HashMap::new()),
             logs: Mutex::new(HashMap::new()),
             adopted: Mutex::new(0),
+            released: Mutex::new(0),
             log_sink: Mutex::new(None),
             run_records: Mutex::new(HashMap::new()),
             reconnect_budget: Mutex::new(HashMap::new()),
@@ -121,6 +123,14 @@ impl ExecEngine {
         *self.adopted.lock().unwrap()
     }
 
+    pub fn released_count(&self) -> u64 {
+        *self.released.lock().unwrap()
+    }
+
+    pub fn record_release(&self) {
+        *self.released.lock().unwrap() += 1;
+    }
+
     pub fn run_category(&self, service_id: &str) -> Option<String> {
         self.categories
             .lock()
@@ -136,6 +146,55 @@ impl ExecEngine {
             .lock()
             .unwrap()
             .insert(service_id.to_string(), category.to_string());
+    }
+
+    pub fn set_starting(&self, service_id: &str) {
+        self.states.lock().unwrap().insert(
+            service_id.to_string(),
+            RuntimeSnapshot {
+                status: "starting".into(),
+                is_loading: true,
+                status_title: "Starting".into(),
+            },
+        );
+    }
+
+    pub fn set_stopping(&self, service_id: &str) {
+        self.states.lock().unwrap().insert(
+            service_id.to_string(),
+            RuntimeSnapshot {
+                status: "stopping".into(),
+                is_loading: true,
+                status_title: "Stopping".into(),
+            },
+        );
+    }
+
+    pub fn set_reconnecting(&self, service_id: &str) {
+        self.states.lock().unwrap().insert(
+            service_id.to_string(),
+            RuntimeSnapshot {
+                status: "reconnecting".into(),
+                is_loading: true,
+                status_title: "Reconnecting".into(),
+            },
+        );
+    }
+
+    pub fn scan_spool_adoption(&self) {
+        let dir = kuma_protocol::paths::runtime_dir().join("logs");
+        let Ok(read) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut n = 0u64;
+        for entry in read.flatten() {
+            if entry.path().extension().is_some_and(|e| e == "ndjson") {
+                n += 1;
+            }
+        }
+        if n > 0 {
+            *self.adopted.lock().unwrap() = n;
+        }
     }
 
     pub fn snapshot(&self, service_id: &str) -> RuntimeSnapshot {
@@ -167,7 +226,12 @@ impl ExecEngine {
             .lock()
             .unwrap()
             .iter()
-            .filter(|(_, s)| s.status == "running" || s.status == "starting")
+            .filter(|(_, s)| {
+                matches!(
+                    s.status.as_str(),
+                    "running" | "starting" | "reconnecting"
+                )
+            })
             .map(|(id, _)| id.clone())
             .collect()
     }
@@ -176,9 +240,9 @@ impl ExecEngine {
         self.states.lock().unwrap().insert(
             service_id.to_string(),
             RuntimeSnapshot {
-                status: "running",
+                status: "running".into(),
                 is_loading: false,
-                status_title: "Running",
+                status_title: "Running".into(),
             },
         );
     }
@@ -212,5 +276,13 @@ impl ExecEngine {
 
     pub fn take_child(&self, service_id: &str) -> Option<Child> {
         self.children.lock().unwrap().remove(service_id)
+    }
+
+    pub fn child_pid(&self, service_id: &str) -> Option<u32> {
+        self.children
+            .lock()
+            .unwrap()
+            .get(service_id)
+            .map(|c| c.id())
     }
 }

@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 kuma-domain = { path = "../kuma-domain" }
+kuma-protocol = { path = "../kuma-protocol" }
 serde_json.workspace = true
 tracing.workspace = true
 thiserror.workspace = true

@@ -1,15 +1,17 @@
+use crate::context::ClientKind;
 use crate::lifecycle::{DataCounts, LifecycleState};
 use kuma_exec::ExecEngine;
 use kuma_protocol::jsonrpc::Response;
 use kuma_protocol::{paths, PROTOCOL_VERSION};
 use serde_json::{json, Value};
 
-pub fn ping(id: Option<Value>) -> Response {
+pub fn ping(id: Option<Value>, client_kind: ClientKind) -> Response {
     Response::ok(
         id,
         json!({
             "pong": true,
             "protocolVersion": PROTOCOL_VERSION,
+            "clientKind": client_kind.as_str(),
         }),
     )
 }
@@ -43,7 +45,11 @@ pub fn status(
             "serviceCount": counts.service_count,
             "runningServices": running,
             "legacyAppRunning": false,
-            "adoptReport": { "adopted": 0, "released": 0 },
+            "adoptReport": {
+                "adopted": exec.adopted_count(),
+                "released": exec.released_count(),
+            },
+            "restListenAddr": rest_listen_addr(),
             "instanceId": lifecycle.instance_id,
         }),
     )
@@ -53,6 +59,14 @@ pub fn shutdown(id: Option<Value>, exec: &ExecEngine, request_shutdown: &dyn Fn(
     let stopped = exec.stop_all();
     request_shutdown();
     Response::ok(id, json!({ "accepted": true, "stoppedServices": stopped }))
+}
+
+fn rest_listen_addr() -> Value {
+    if std::env::var("KUMA_REST").ok().as_deref() == Some("1") {
+        json!("127.0.0.1:9364")
+    } else {
+        Value::Null
+    }
 }
 
 pub fn rotate_api_token(id: Option<Value>, data_dir: &std::path::Path) -> Response {

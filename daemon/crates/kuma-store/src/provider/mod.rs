@@ -134,6 +134,7 @@ impl ProviderStore {
             .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or(&row.type_);
+        crate::validation::reject_foreign_fields(ptype, params)?;
         conn.execute(
             "UPDATE provider SET type = ?1, label = ?2, updatedAt = ?3 WHERE id = ?4",
             rusqlite::params![ptype, label, now, id],

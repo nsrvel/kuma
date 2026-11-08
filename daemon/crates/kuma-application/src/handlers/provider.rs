@@ -1,4 +1,6 @@
+use crate::exec_gate::{provider_locked_response, service_runtime_locked};
 use crate::handlers::kuma_err::service_err;
+use kuma_exec::ExecEngine;
 use kuma_protocol::jsonrpc::Response;
 use kuma_store::{EventBus, ProviderStore, ServiceStore, Vault};
 use serde_json::{json, Value};
@@ -19,11 +21,17 @@ pub fn add(
     store: &ProviderStore,
     svc_store: &ServiceStore,
     bus: &Arc<EventBus>,
+    exec: &ExecEngine,
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
     };
+    if let Some(sid) = obj.get("serviceID").and_then(|v| v.as_str()) {
+        if service_runtime_locked(exec, sid) {
+            return provider_locked_response(id);
+        }
+    }
     match store.add(obj) {
         Ok(body) => {
             if let Some(sid) = obj.get("serviceID").and_then(|v| v.as_str()) {
@@ -49,11 +57,21 @@ pub fn update(
     store: &ProviderStore,
     vault: &Vault,
     bus: &Arc<EventBus>,
+    exec: &ExecEngine,
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
     };
+    if let Some(pid) = obj.get("id").and_then(|v| v.as_str()) {
+        if let Ok(body) = store.get(pid) {
+            if let Some(sid) = body.get("serviceID").and_then(|v| v.as_str()) {
+                if service_runtime_locked(exec, sid) {
+                    return provider_locked_response(id);
+                }
+            }
+        }
+    }
     match store.update(vault, obj) {
         Ok(body) => {
             if let Some(sid) = body
@@ -76,11 +94,21 @@ pub fn delete(
     id: Option<Value>,
     store: &ProviderStore,
     bus: &Arc<EventBus>,
+    exec: &ExecEngine,
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
     };
+    if let Some(pid) = obj.get("id").and_then(|v| v.as_str()) {
+        if let Ok(body) = store.get(pid) {
+            if let Some(sid) = body.get("serviceID").and_then(|v| v.as_str()) {
+                if service_runtime_locked(exec, sid) {
+                    return provider_locked_response(id);
+                }
+            }
+        }
+    }
     let sid = obj.get("id").and_then(|v| v.as_str()).map(str::to_string);
     match store.delete(obj) {
         Ok(body) => {
@@ -101,11 +129,17 @@ pub fn set_ports(
     id: Option<Value>,
     store: &ProviderStore,
     bus: &Arc<EventBus>,
+    exec: &ExecEngine,
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
     };
+    if let Some(sid) = obj.get("serviceID").and_then(|v| v.as_str()) {
+        if service_runtime_locked(exec, sid) {
+            return provider_locked_response(id);
+        }
+    }
     let sid = obj.get("serviceID").cloned();
     match store.set_ports(obj) {
         Ok(body) => {

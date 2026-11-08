@@ -40,11 +40,13 @@ fn start_service_inner(
 }
 
 pub fn stop_service(engine: &Arc<ExecEngine>, service_id: &str) -> Result<(), ExecError> {
+    engine.set_stopping(service_id);
     if let Some(mut child) = engine.take_child(service_id) {
         let _ = child.kill();
         let _ = child.wait();
     }
     engine.set_stopped(service_id);
+    engine.record_release();
     Ok(())
 }
 
@@ -109,6 +111,27 @@ fn start_kubernetes(
         .filter(|s| !s.is_empty())
         .ok_or_else(|| ExecError::Message("kubernetes provider missing targetName".into()))?;
     let mut command = Command::new(bin);
+    if let Some(ctx) = provider
+        .get("kubeContext")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        command.arg("--context").arg(ctx);
+    }
+    if let Some(kid) = provider
+        .get("kubeConfigID")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        if let Ok(data) = std::env::var("KUMA_DATA_DIR") {
+            let path = std::path::Path::new(&data)
+                .join("kubeconfigs")
+                .join(format!("{kid}.yaml"));
+            if path.exists() {
+                command.env("KUBECONFIG", path);
+            }
+        }
+    }
     command
         .arg("port-forward")
         .arg(target)
@@ -145,6 +168,13 @@ fn start_container(
     }
     let mut command = Command::new(bin);
     command.args(["compose", "up", "-d"]);
+    if let Some(path) = provider
+        .get("composeFilePath")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        command.arg("-f").arg(path);
+    }
     apply_working_dir(&mut command, provider);
     spawn_managed(engine, service_id, ptype, provider, command, is_reconnect)
 }

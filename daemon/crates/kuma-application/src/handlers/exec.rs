@@ -74,6 +74,9 @@ pub fn start(
     };
     match start_service(exec, sid, &provider) {
         Ok(()) => {
+            if let Some(pid) = exec.child_pid(sid) {
+                let _ = store.runtime_process().upsert_running(sid, pid);
+            }
             let _ = bus.publish(
                 "service.state_changed",
                 json!({ "serviceID": sid, "status": "running" }),
@@ -86,6 +89,7 @@ pub fn start(
 
 pub fn stop(
     id: Option<Value>,
+    store: &StoreHandle,
     exec: &Arc<ExecEngine>,
     bus: &Arc<EventBus>,
     params: &Value,
@@ -95,6 +99,7 @@ pub fn stop(
     };
     match stop_service(exec, sid) {
         Ok(()) => {
+            let _ = store.runtime_process().clear(sid);
             let _ = bus.publish(
                 "service.state_changed",
                 json!({ "serviceID": sid, "status": "stopped" }),
@@ -121,6 +126,9 @@ pub fn restart(
     };
     match restart_service(exec, sid, &provider) {
         Ok(()) => {
+            if let Some(pid) = exec.child_pid(sid) {
+                let _ = store.runtime_process().upsert_running(sid, pid);
+            }
             let _ = bus.publish(
                 "service.state_changed",
                 json!({ "serviceID": sid, "status": "running" }),

@@ -3,6 +3,7 @@ use kuma_domain::StoreError;
 use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -20,6 +21,7 @@ pub struct EventBus {
     conn: Arc<Mutex<Connection>>,
     buffer: Mutex<Vec<StoredEvent>>,
     subs: Mutex<HashMap<String, Vec<String>>>,
+    live: Mutex<Vec<Sender<String>>>,
 }
 
 impl EventBus {
@@ -33,7 +35,14 @@ impl EventBus {
             conn,
             buffer: Mutex::new(Vec::new()),
             subs: Mutex::new(HashMap::new()),
+            live: Mutex::new(Vec::new()),
         })
+    }
+
+    pub fn live_subscribe(&self) -> Receiver<String> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.live.lock().unwrap().push(tx);
+        rx
     }
 
     pub fn publish(&self, name: &str, payload: Value) -> Result<u64, StoreError> {
@@ -54,11 +63,20 @@ impl EventBus {
             name: name.into(),
             payload,
         };
+        let wire = json!({
+            "seq": seq,
+            "name": name,
+            "payload": &event.payload,
+        });
         let mut buf = self.buffer.lock().unwrap();
         buf.push(event);
         if buf.len() > REPLAY_CAPACITY {
             let drop_n = buf.len() - REPLAY_CAPACITY;
             buf.drain(0..drop_n);
+        }
+        if let Ok(line) = serde_json::to_string(&wire) {
+            let mut live = self.live.lock().unwrap();
+            live.retain(|tx| tx.send(line.clone()).is_ok());
         }
         Ok(seq)
     }

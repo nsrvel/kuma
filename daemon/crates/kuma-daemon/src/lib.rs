@@ -5,7 +5,9 @@ mod rest;
 pub mod rest_registry;
 
 use anyhow::{Context, Result};
-use kuma_application::{Application, DataCounts, DispatchOutcome, LifecycleState};
+use kuma_application::{
+    Application, ClientKind, DataCounts, DispatchContext, DispatchOutcome, LifecycleState,
+};
 use kuma_exec::ExecEngine;
 use kuma_protocol::jsonrpc::{self, Response, ERR_PARSE};
 use kuma_protocol::paths;
@@ -43,6 +45,7 @@ pub async fn run() -> Result<()> {
 
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
     let exec = ExecEngine::new();
+    exec.scan_spool_adoption();
     {
         let store_logs = Arc::clone(&store);
         exec.set_log_sink(Arc::new(move |sid, line| {
@@ -117,11 +120,13 @@ async fn handle_connection(
 ) -> Result<()> {
     if !peer::peer_uid_matches_daemon(stream.as_raw_fd())? {
         warn!("rejected connection: peer uid mismatch");
+        app.store().audit().log_auth_reject("peer-uid");
         return Ok(());
     }
 
     let (reader, mut writer) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
+    let mut ctx = DispatchContext::unix(ClientKind::Cli);
 
     loop {
         tokio::select! {
@@ -139,7 +144,7 @@ async fn handle_connection(
                 let response = match jsonrpc::Request::parse_line(&line) {
                     Ok(req) => {
                         tracing::debug!(method = %req.method, id = ?req.id, "rpc request");
-                        match app.dispatch(req) {
+                        match app.dispatch(req, &mut ctx) {
                             DispatchOutcome::Reply(r) => r,
                             DispatchOutcome::ShutdownRequested(r) => {
                                 let _ = shutdown_tx.send(());
@@ -160,7 +165,9 @@ async fn handle_connection(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kuma_application::{Application, DataCounts, DispatchOutcome, LifecycleState};
+    use kuma_application::{
+        Application, ClientKind, DataCounts, DispatchContext, DispatchOutcome, LifecycleState,
+    };
     use kuma_protocol::jsonrpc::Request;
     use kuma_protocol::methods;
     use std::sync::Arc;
@@ -298,7 +305,8 @@ mod tests {
             params: serde_json::json!({}),
             id: Some(1.into()),
         };
-        let DispatchOutcome::Reply(resp) = app.dispatch(req) else {
+        let mut ctx = DispatchContext::unix(ClientKind::Cli);
+        let DispatchOutcome::Reply(resp) = app.dispatch(req, &mut ctx) else {
             panic!("reply");
         };
         assert!(resp.result.is_some());

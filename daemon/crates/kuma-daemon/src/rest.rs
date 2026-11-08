@@ -3,8 +3,8 @@ use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use axum::body::Body;
 use axum::response::{IntoResponse, Json, Response, Sse};
 use axum::Router;
-use futures_util::stream;
-use kuma_application::{Application, DispatchOutcome};
+use futures_util::stream::{self, StreamExt};
+use kuma_application::{Application, DispatchContext, DispatchOutcome};
 use kuma_protocol::jsonrpc::{Request, Response as JsonRpcResponse, ERR_KUMA};
 use kuma_store::api_token_path;
 use crate::rest_registry::{match_route, path_params_to_rpc, RestRoute};
@@ -164,17 +164,14 @@ fn dispatch_rpc(
         params,
         id: Some(1.into()),
     };
-    let outcome = state.app.dispatch(req);
+    let mut ctx = DispatchContext::rest();
+    let outcome = state.app.dispatch(req, &mut ctx);
     let resp = match outcome {
         DispatchOutcome::Reply(r) => r,
         DispatchOutcome::ShutdownRequested(r) => r,
     };
     if let Some(err) = resp.error {
-        let status = if err.code == ERR_KUMA {
-            StatusCode::UNPROCESSABLE_ENTITY
-        } else {
-            StatusCode::INTERNAL_SERVER_ERROR
-        };
+        let status = map_rpc_http_status(err.code, &err.message);
         return Err((status, "KUMA_RPC_ERROR", err.message));
     }
     let body = resp.result.unwrap_or(json!({}));
@@ -202,7 +199,25 @@ async fn events_sse(state: RestState, headers: &HeaderMap) -> Response {
         Ok((_, v)) => serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()),
         Err((_, _, m)) => json!({ "error": m }).to_string(),
     };
-    let stream = stream::once(async move { Ok::<_, Infallible>(Event::default().data(initial)) });
+    let rx = state.app.store().events().live_subscribe();
+    let live = stream::unfold(rx, |rx| async move {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        loop {
+            match rx.try_recv() {
+                Ok(line) => {
+                    return Some((
+                        Ok::<_, Infallible>(Event::default().data(line)),
+                        rx,
+                    ));
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
+            }
+        }
+    });
+    let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);
     Sse::new(stream)
         .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
@@ -219,18 +234,36 @@ async fn logs_sse(
             .into_response();
     }
     let sid = caps.get("serviceId").cloned().unwrap_or_default();
-    let outcome = dispatch_rpc(
-        &state,
-        "logs.follow",
-        json!({ "serviceID": sid }),
-        None,
-    );
-    let line = match outcome {
-        Ok((_, v)) => serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()),
-        Err((_, _, m)) => json!({ "error": m }).to_string(),
-    };
-    let stream = stream::once(async move { Ok::<_, Infallible>(Event::default().data(line)) });
-    Sse::new(stream).into_response()
+    if sid.is_empty() {
+        return rest_error(StatusCode::BAD_REQUEST, "KUMA_BAD_REQUEST", "missing service id")
+            .into_response();
+    }
+    let initial =
+        serde_json::to_string(&state.app.store().logs().follow_snapshot(&sid)).unwrap_or_else(
+            |_| "{}".into(),
+        );
+    let rx = state.app.store().logs().subscribe(&sid);
+    let live = stream::unfold(rx, |rx| async move {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        loop {
+            match rx.try_recv() {
+                Ok(line) => {
+                    return Some((
+                        Ok::<_, Infallible>(Event::default().data(line)),
+                        rx,
+                    ));
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
+            }
+        }
+    });
+    let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);
+    Sse::new(stream)
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
 }
 
 async fn workspace_image_png(
@@ -311,7 +344,8 @@ async fn jsonrpc(
         params: body.get("params").cloned().unwrap_or(json!({})),
         id: body.get("id").cloned(),
     };
-    let outcome = state.app.dispatch(req);
+    let mut ctx = DispatchContext::rest();
+    let outcome = state.app.dispatch(req, &mut ctx);
     let resp = match outcome {
         DispatchOutcome::Reply(r) => r,
         DispatchOutcome::ShutdownRequested(r) => r,
@@ -365,4 +399,18 @@ fn reject_origin(headers: &HeaderMap) -> bool {
 
 fn reject_reveal(req: &AxumRequest) -> bool {
     req.uri().query().is_some_and(|q| q.contains("revealSecrets"))
+}
+
+fn map_rpc_http_status(code: i32, message: &str) -> StatusCode {
+    if message.contains("KUMA_CONFLICT") || message.contains("Stale") {
+        return StatusCode::CONFLICT;
+    }
+    if message.contains("NOT_FOUND") || message.contains("not found") {
+        return StatusCode::NOT_FOUND;
+    }
+    if code == ERR_KUMA {
+        StatusCode::UNPROCESSABLE_ENTITY
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    }
 }

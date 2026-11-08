@@ -4,12 +4,14 @@ use std::collections::{HashMap, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 
 const MAX_LINES: usize = 500;
 
 pub struct LogBuffer {
     inner: Mutex<HashMap<String, VecDeque<String>>>,
+    subscribers: Mutex<HashMap<String, Vec<Sender<String>>>>,
     spool_dir: PathBuf,
 }
 
@@ -19,6 +21,7 @@ impl LogBuffer {
         let _ = std::fs::create_dir_all(&spool_dir);
         Self {
             inner: Mutex::new(HashMap::new()),
+            subscribers: Mutex::new(HashMap::new()),
             spool_dir,
         }
     }
@@ -37,6 +40,26 @@ impl LogBuffer {
         if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&path) {
             let _ = writeln!(f, "{line}");
         }
+        self.notify(service_id, &line);
+    }
+
+    pub fn subscribe(&self, service_id: &str) -> Receiver<String> {
+        let (tx, rx) = mpsc::channel();
+        self.subscribers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .entry(service_id.to_string())
+            .or_default()
+            .push(tx);
+        rx
+    }
+
+    fn notify(&self, service_id: &str, line: &str) {
+        let mut subs = self.subscribers.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(chans) = subs.get_mut(service_id) else {
+            return;
+        };
+        chans.retain(|tx| tx.send(line.to_string()).is_ok());
     }
 
     pub fn tail(&self, service_id: &str, limit: usize) -> Value {
@@ -68,6 +91,7 @@ impl LogBuffer {
             "following": true,
             "serviceID": service_id,
             "lines": lines,
+            "stream": true,
         })
     }
 

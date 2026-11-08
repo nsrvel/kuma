@@ -1,15 +1,19 @@
 //! Application layer: orchestrates use cases; no Tokio, no sockets.
 
+mod context;
 mod dispatch;
+mod exec_gate;
 mod handlers;
 pub mod lifecycle;
 
+pub use context::{apply_client_kind, ClientKind, DispatchContext, Transport};
 pub use dispatch::{Application, DispatchOutcome};
 pub use lifecycle::{DataCounts, LifecycleState};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::{ClientKind, DispatchContext};
     use kuma_protocol::jsonrpc::{Request, ERR_METHOD_NOT_FOUND};
     use kuma_protocol::methods;
     use kuma_exec::ExecEngine;
@@ -38,7 +42,8 @@ mod tests {
             params: serde_json::json!({}),
             id: Some(1.into()),
         };
-        let DispatchOutcome::Reply(resp) = app.dispatch(req) else {
+        let mut ctx = DispatchContext::unix(ClientKind::Cli);
+        let DispatchOutcome::Reply(resp) = app.dispatch(req, &mut ctx) else {
             panic!("expected reply");
         };
         let result = resp.result.unwrap();
@@ -55,7 +60,8 @@ mod tests {
             params: serde_json::json!({}),
             id: Some(2.into()),
         };
-        let DispatchOutcome::Reply(resp) = app.dispatch(req) else {
+        let mut ctx = DispatchContext::unix(ClientKind::Cli);
+        let DispatchOutcome::Reply(resp) = app.dispatch(req, &mut ctx) else {
             panic!("expected reply");
         };
         let r = resp.result.unwrap();
@@ -88,7 +94,8 @@ mod tests {
             params: serde_json::json!({}),
             id: Some(3.into()),
         };
-        let DispatchOutcome::Reply(resp) = app.dispatch(req) else {
+        let mut ctx = DispatchContext::unix(ClientKind::Cli);
+        let DispatchOutcome::Reply(resp) = app.dispatch(req, &mut ctx) else {
             panic!("expected reply");
         };
         assert_eq!(resp.error.as_ref().unwrap().code, ERR_METHOD_NOT_FOUND);
@@ -115,7 +122,8 @@ mod tests {
             params: serde_json::json!({}),
             id: Some(4.into()),
         };
-        let DispatchOutcome::ShutdownRequested(resp) = app.dispatch(req) else {
+        let mut ctx = DispatchContext::unix(ClientKind::Cli);
+        let DispatchOutcome::ShutdownRequested(resp) = app.dispatch(req, &mut ctx) else {
             panic!("expected shutdown");
         };
         assert!(resp.result.is_some());

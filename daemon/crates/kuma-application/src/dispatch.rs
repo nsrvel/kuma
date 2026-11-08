@@ -1,10 +1,11 @@
+use crate::context::{apply_client_kind, params_want_reveal, ClientKind, DispatchContext};
 use crate::handlers::{
     daemon, data, env, events, exec, group, k8s, kubeconfig, logs, provider, service, settings,
     workspace,
 };
 use kuma_exec::ExecEngine;
 use crate::lifecycle::{DataCounts, LifecycleState};
-use kuma_protocol::jsonrpc::{Request, Response, ERR_INVALID_REQUEST, ERR_METHOD_NOT_FOUND};
+use kuma_protocol::jsonrpc::{Request, Response, ERR_INVALID_REQUEST, ERR_KUMA, ERR_METHOD_NOT_FOUND};
 use kuma_protocol::methods;
 use kuma_store::StoreHandle;
 use std::sync::Arc;
@@ -43,7 +44,11 @@ impl Application {
         &self.exec
     }
 
-    pub fn dispatch(&self, req: Request) -> DispatchOutcome {
+    pub fn store(&self) -> &Arc<StoreHandle> {
+        &self.store
+    }
+
+    pub fn dispatch(&self, req: Request, ctx: &mut DispatchContext) -> DispatchOutcome {
         if req.jsonrpc != "2.0" {
             return DispatchOutcome::Reply(Response::err(
                 req.id,
@@ -52,12 +57,29 @@ impl Application {
             ));
         }
 
+        if params_want_reveal(&req.params) && !ctx.reveal_allowed() {
+            let resp = Response::err(
+                req.id,
+                ERR_KUMA,
+                "revealSecrets forbidden for this connection",
+            );
+            self.log_audit(&req.method, &resp, ctx, &req.params);
+            return DispatchOutcome::Reply(resp);
+        }
+
         let store = &self.store;
         let bus = store.events();
         let settings = store.settings();
 
-        match req.method.as_str() {
-            methods::DAEMON_PING => DispatchOutcome::Reply(daemon::ping(req.id)),
+        let outcome = match req.method.as_str() {
+            methods::DAEMON_PING => {
+                if let Some(s) = req.params.get("clientKind").and_then(|v| v.as_str()) {
+                    if let Some(k) = ClientKind::parse(s) {
+                        apply_client_kind(&mut ctx.client_kind, k);
+                    }
+                }
+                DispatchOutcome::Reply(daemon::ping(req.id, ctx.client_kind))
+            }
             methods::DAEMON_STATUS => DispatchOutcome::Reply(daemon::status(
                 req.id,
                 &self.lifecycle,
@@ -272,6 +294,7 @@ impl Application {
                 store.provider(),
                 store.service(),
                 bus,
+                self.exec.as_ref(),
                 &req.params,
             )),
             methods::PROVIDER_UPDATE => DispatchOutcome::Reply(provider::update(
@@ -279,18 +302,21 @@ impl Application {
                 store.provider(),
                 store.vault(),
                 bus,
+                self.exec.as_ref(),
                 &req.params,
             )),
             methods::PROVIDER_DELETE => DispatchOutcome::Reply(provider::delete(
                 req.id,
                 store.provider(),
                 bus,
+                self.exec.as_ref(),
                 &req.params,
             )),
             methods::PROVIDER_SET_PORTS => DispatchOutcome::Reply(provider::set_ports(
                 req.id,
                 store.provider(),
                 bus,
+                self.exec.as_ref(),
                 &req.params,
             )),
             methods::SERVICE_STATUS => DispatchOutcome::Reply(exec::status(
@@ -315,6 +341,7 @@ impl Application {
             )),
             methods::SERVICE_STOP => DispatchOutcome::Reply(exec::stop(
                 req.id,
+                store,
                 &self.exec,
                 bus,
                 &req.params,
@@ -421,6 +448,30 @@ impl Application {
                 ERR_METHOD_NOT_FOUND,
                 format!("method not found: {other}"),
             )),
-        }
+        };
+        let response = match &outcome {
+            DispatchOutcome::Reply(r) | DispatchOutcome::ShutdownRequested(r) => r,
+        };
+        self.log_audit(&req.method, response, ctx, &req.params);
+        outcome
+    }
+
+    fn log_audit(
+        &self,
+        method: &str,
+        resp: &Response,
+        ctx: &DispatchContext,
+        params: &serde_json::Value,
+    ) {
+        let reveal = params_want_reveal(params);
+        let outcome = if resp.error.is_some() { "error" } else { "ok" };
+        self.store.audit().log_rpc(
+            method,
+            outcome,
+            ctx.transport_str(),
+            ctx.client_kind_str(),
+            reveal,
+            params,
+        );
     }
 }

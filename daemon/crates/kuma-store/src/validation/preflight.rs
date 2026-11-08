@@ -36,6 +36,38 @@ pub fn service_preflight(conn: &Connection, service_id: &str) -> Result<Value, S
             "message": "Active provider not set",
         }));
     }
+    if let Some(active) = service.get("activeProviderID").and_then(|v| v.as_str()) {
+        if let Ok(providers) = provider_list(conn, active) {
+            if let Some(ptype) = providers.get("type").and_then(|v| v.as_str()) {
+                if ptype == "shell" {
+                    let cmd = providers
+                        .get("runCommand")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim();
+                    if cmd.is_empty() {
+                        issues.push(json!({
+                            "code": "KUMA_PRV_SHELL_COMMAND",
+                            "message": "Shell provider missing runCommand",
+                        }));
+                    }
+                }
+                if ptype == "ssh" {
+                    let host = providers
+                        .get("sshHost")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .trim();
+                    if host.is_empty() {
+                        issues.push(json!({
+                            "code": "KUMA_PRV_SSH_HOST",
+                            "message": "SSH provider missing sshHost",
+                        }));
+                    }
+                }
+            }
+        }
+    }
     if let Some(mappings) = service
         .get("portMappings")
         .and_then(|v| v.as_array())
@@ -59,4 +91,24 @@ pub fn service_preflight(conn: &Connection, service_id: &str) -> Result<Value, S
         "ok": issues.is_empty(),
         "issues": issues,
     }))
+}
+
+fn provider_list(conn: &Connection, provider_id: &str) -> Result<Value, ServiceError> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT type, runCommand, sshHost FROM provider WHERE id = ?1",
+        )
+        .map_err(|e| ServiceError::InvalidPort {
+            message: e.to_string(),
+        })?;
+    stmt.query_row([provider_id], |row| {
+        Ok(json!({
+            "type": row.get::<_, String>(0)?,
+            "runCommand": row.get::<_, Option<String>>(1)?,
+            "sshHost": row.get::<_, Option<String>>(2)?,
+        }))
+    })
+    .map_err(|_| ServiceError::ProviderNotFound {
+        id: provider_id.into(),
+    })
 }

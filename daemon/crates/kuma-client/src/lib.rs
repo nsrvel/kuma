@@ -33,13 +33,28 @@ pub struct DaemonClient {
 
 impl DaemonClient {
     pub async fn connect_socket(path: impl AsRef<Path>) -> Result<Self> {
+        Self::connect_with_kind(path, "cli").await
+    }
+
+    pub async fn connect_mcp(path: impl AsRef<Path>) -> Result<Self> {
+        Self::connect_with_kind(path, "mcp").await
+    }
+
+    async fn connect_with_kind(path: impl AsRef<Path>, client_kind: &str) -> Result<Self> {
         let stream = UnixStream::connect(path.as_ref()).await?;
         let (reader, writer) = stream.into_split();
-        Ok(Self {
+        let mut client = Self {
             reader: BufReader::new(reader),
             writer,
             next_id: 1,
-        })
+        };
+        let _ = client
+            .call(
+                methods::DAEMON_PING,
+                serde_json::json!({ "clientKind": client_kind }),
+            )
+            .await;
+        Ok(client)
     }
 
     pub async fn connect_default() -> Result<Self> {

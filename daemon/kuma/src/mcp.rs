@@ -6,7 +6,7 @@ use std::io::{self, BufRead, Write};
 
 /// MCP stdio server: `initialize`, `tools/list`, `tools/call` → daemon JSON-RPC.
 pub async fn run_stdio_mcp() -> Result<()> {
-    let mut client = DaemonClient::connect_default().await?;
+    let mut client = DaemonClient::connect_mcp(kuma_protocol::paths::socket_path()).await?;
     let stdin = io::stdin();
   for line in stdin.lock().lines() {
         let line = line?;

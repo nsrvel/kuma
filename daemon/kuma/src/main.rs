@@ -38,10 +38,23 @@ enum Commands {
         #[command(subcommand)]
         command: ServiceCommands,
     },
+    Kubeconfig {
+        #[command(subcommand)]
+        command: KubeconfigCommands,
+    },
 }
 
 #[derive(Subcommand)]
 enum WorkspaceCommands {
+    List,
+    GetImage {
+        #[arg(long)]
+        id: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum KubeconfigCommands {
     List,
 }
 
@@ -61,9 +74,9 @@ enum ServiceCommands {
 enum DaemonCommands {
     /// Run the daemon in the foreground (also used by LaunchAgent).
     Run,
-    /// Install user LaunchAgent (not implemented).
+    /// Install user LaunchAgent plist and load via launchctl.
     Install,
-    /// Remove user LaunchAgent (not implemented).
+    /// Unload and remove user LaunchAgent plist.
     Uninstall,
     /// Rotate REST bearer token (Unix socket only).
     RotateApiToken,
@@ -94,6 +107,25 @@ async fn main() -> Result<()> {
                 let mut client = kuma_client::DaemonClient::connect_default().await?;
                 let v = client
                     .call(kuma_protocol::methods::WORKSPACE_LIST, serde_json::json!({}))
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&v)?);
+            }
+            WorkspaceCommands::GetImage { id } => {
+                let mut client = kuma_client::DaemonClient::connect_default().await?;
+                let v = client
+                    .call(
+                        kuma_protocol::methods::WORKSPACE_GET_IMAGE,
+                        serde_json::json!({ "id": id }),
+                    )
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&v)?);
+            }
+        },
+        Commands::Kubeconfig { command } => match command {
+            KubeconfigCommands::List => {
+                let mut client = kuma_client::DaemonClient::connect_default().await?;
+                let v = client
+                    .call(kuma_protocol::methods::KUBECONFIG_LIST, serde_json::json!({}))
                     .await?;
                 println!("{}", serde_json::to_string_pretty(&v)?);
             }
