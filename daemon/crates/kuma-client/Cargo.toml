@@ -1,0 +1,16 @@
+[package]
+name = "kuma-client"
+description = "NDJSON JSON-RPC client for the Kuma daemon Unix socket"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kuma-protocol = { path = "../kuma-protocol" }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["io-util", "net"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }

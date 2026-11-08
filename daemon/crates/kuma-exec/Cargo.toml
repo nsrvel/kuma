@@ -1,0 +1,13 @@
+[package]
+name = "kuma-exec"
+description = "Service runtime supervisor (shell runner first)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kuma-domain = { path = "../kuma-domain" }
+serde_json.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

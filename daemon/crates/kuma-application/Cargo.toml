@@ -1,0 +1,16 @@
+[package]
+name = "kuma-application"
+description = "Use cases and RPC dispatch for the Kuma daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kuma-store = { path = "../kuma-store" }
+kuma-exec = { path = "../kuma-exec" }
+kuma-domain = { path = "../kuma-domain" }
+kuma-protocol = { path = "../kuma-protocol" }
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

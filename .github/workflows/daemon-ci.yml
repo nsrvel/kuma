@@ -1,0 +1,70 @@
+name: Daemon CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'daemon/**'
+      - 'docs/specs/daemon/mcp-tools.csv'
+      - 'docs/specs/daemon/validate_mcp_tools_csv.py'
+      - '.github/workflows/daemon-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'daemon/**'
+      - 'docs/specs/daemon/mcp-tools.csv'
+      - 'docs/specs/daemon/validate_mcp_tools_csv.py'
+      - '.github/workflows/daemon-ci.yml'
+
+concurrency:
+  group: daemon-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (macOS)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: daemon
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            daemon/target
+          key: cargo-daemon-${{ runner.os }}-${{ hashFiles('daemon/Cargo.lock', 'daemon/**/*.toml', 'daemon/**/*.rs') }}
+          restore-keys: |
+            cargo-daemon-${{ runner.os }}-
+
+      - name: Validate mcp-tools.csv vs dispatch
+        run: python3 ../docs/specs/daemon/validate_mcp_tools_csv.py
+
+      - name: check_traceability (spec surfaces)
+        run: python3 ../docs/specs/daemon/check_traceability.py
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        env:
+          KUMA_SKIP_PATH_SNIFF: "1"
+        run: cargo test --all
+
+      - name: Line coverage (≥90%, exclude kuma-cli binary)
+        run: cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 90

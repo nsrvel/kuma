@@ -1,0 +1,25 @@
+[package]
+name = "kuma-cli"
+description = "Kuma command-line interface (daemon, MCP, …)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "kuma"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+kuma-daemon = { path = "../crates/kuma-daemon" }
+kuma-client = { path = "../crates/kuma-client" }
+kuma-protocol = { path = "../crates/kuma-protocol" }
+serde_json.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+kuma-client = { path = "../crates/kuma-client" }
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
