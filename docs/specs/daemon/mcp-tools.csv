@@ -1,75 +1,75 @@
 module,surface,mcp_tool,description,rest_endpoint,rpc_method,rpc_status,logic_status,dt_coverage,auto_test,manual_smoke,mcp_wired,rest_wired,cli_wired,verified,notes
-Daemon,"mcp,rest,cli",kuma_daemon_ping,Liveness + protocol version,GET /v1/daemon/ping,daemon.ping,done,done,DT-LIF-01,y,y,y,y,y,2026-11-08,
-Daemon,cli_only,,Rotate REST bearer token file (Unix socket only; 02 ADD-31),,daemon.rotate_api_token,done,done,,n,n,n,n,n,2026-11-08,Method name in kuma-protocol only
-Daemon,"mcp,rest,cli",kuma_daemon_shutdown,Graceful stop (optional stop services),POST /v1/daemon/shutdown,daemon.shutdown,done,done,DT-LIF-02;DT-LIF-03,y,y,y,y,y,2026-11-08,stop-all before shutdown via kuma-exec
-Daemon,"mcp,rest,cli",kuma_daemon_status,"Version, uptime, db path, counts, running services",GET /v1/daemon/status,daemon.status,done,done,DT-LIF-11,y,y,y,y,y,2026-11-08,runningServices/adoptReport need kuma-exec (E1)
-DataPort,"mcp,rest,cli",kuma_data_export,Export all / workspace / service,POST /v1/data/export,data.export,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-DataPort,"mcp,rest,cli",kuma_data_export_service_json,"Single-service JSON (""Copy Config"")",GET /v1/services/{serviceId}/export-json,data.export_service_json,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-DataPort,"mcp,rest,cli",kuma_data_factory_reset,"Stop everything, wipe DB/prefs/images",POST /v1/data/factory-reset,data.factory_reset,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-DataPort,"mcp,rest,cli",kuma_data_import,Import with strategy and selection,POST /v1/data/import,data.import,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-DataPort,"mcp,rest,cli",kuma_data_import_preview,Parse any backup (full or single) into a summary,POST /v1/data/import/preview,data.import_preview,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Environment,"mcp,rest,cli",kuma_env_dependencies,Scan kubectl/kubeconfig/docker/podman/cloudflared/ngrok,GET /v1/env/dependencies,env.dependencies,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Environment,"mcp,rest,cli",kuma_env_path,Resolved PATH string and sources,GET /v1/env/path,env.path,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Environment,"mcp,rest,cli",kuma_env_refresh,Drop PATH cache and re-resolve,POST /v1/env/refresh,env.refresh,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Environment,"mcp,rest,cli",kuma_env_resolve_executable,Resolve a command name or path to executable,POST /v1/env/resolve-executable,env.resolve_executable,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Environment,"mcp,rest,cli",kuma_env_validate_binary,`DependencyChecker.validateCustomBinary`,POST /v1/env/validate-binary,env.validate_binary,done,done,DT-SET-10..15,y,n,y,y,y,2026-11-08,2026-11-08
-Events,"mcp,rest,cli",kuma_events_subscribe,Subscribe to event topics (with replay),GET /v1/events/stream (SSE); optional GET /v1/events/ws,events.subscribe,done,done,,y,—,y,y,y,2026-11-08,In-memory replay; NDJSON push deferred to Epic L/SURF
-Events,"mcp,rest,cli",kuma_events_unsubscribe,Cancel subscription,DELETE /v1/events/subscriptions/{subscriptionId},events.unsubscribe,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Execution,"mcp,rest,cli",kuma_ports_check,"Who occupies a local port, policy outcome",POST /v1/ports/check,ports.check,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Execution,"mcp,rest,cli",kuma_runtime_adopt_report,Result of last orphan adoption pass,GET /v1/runtime/adopt-report,runtime.adopt_report,done,done,,n,—,y,y,y,2026-11-08,adopted count from ExecEngine
-Group,"mcp,rest,cli",kuma_group_create,Create group,POST /v1/workspaces/{workspaceId}/groups,group.create,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Group,"mcp,rest,cli",kuma_group_delete,Delete group (services stay),DELETE /v1/groups/{groupId},group.delete,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Group,"mcp,rest,cli",kuma_group_list,Groups of a workspace,GET /v1/workspaces/{workspaceId}/groups,group.list,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Group,"mcp,rest,cli",kuma_group_reorder,Persist new order,PUT /v1/workspaces/{workspaceId}/groups/order,group.reorder,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Group,"mcp,rest,cli",kuma_group_update,Rename group,PATCH /v1/groups/{groupId},group.update,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Kubernetes,"mcp,rest,cli",kuma_k8s_namespaces,List namespaces,GET /v1/k8s/namespaces,k8s.namespaces,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_k8s_resolve_target,Resolve pattern to concrete resource,POST /v1/k8s/resolve-target,k8s.resolve_target,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_k8s_resources,List pods/services/deployments,GET /v1/k8s/resources,k8s.resources,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_contexts,Parse contexts + current context,GET /v1/kubeconfigs/{kubeconfigId}/contexts,kubeconfig.contexts,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_create,Register file-backed or pasted kubeconfig,POST /v1/kubeconfigs,kubeconfig.create,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_delete,Delete (not Default),DELETE /v1/kubeconfigs/{kubeconfigId},kubeconfig.delete,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_get,One kubeconfig (content decrypted on request),GET /v1/kubeconfigs/{kubeconfigId},kubeconfig.get,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_list,Registered kubeconfigs (+ virtual Default),GET /v1/kubeconfigs,kubeconfig.list,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_test_connection,`kubectl version` probe with cache,POST /v1/kubeconfigs/{kubeconfigId}/test-connection,kubeconfig.test_connection,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_update,Update,PATCH /v1/kubeconfigs/{kubeconfigId},kubeconfig.update,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Logs,"mcp,rest,cli",kuma_logs_clear,Clear buffer,DELETE /v1/services/{serviceId}/logs/activity,logs.clear,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Logs,"mcp,rest,cli",kuma_logs_tail,Activity-log buffer for a service,GET /v1/services/{serviceId}/logs/activity,logs.tail,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Logs,"mcp,rest,cli",kuma_logs_workload_tail,"One-shot workload logs (`kubectl logs`, compose logs, spool)",GET /v1/services/{serviceId}/logs/workload,logs.workload_tail,done,done,,n,—,y,y,y,2026-11-08,Fase not started
-Provider,"mcp,rest,cli",kuma_provider_add,Add provider,POST /v1/services/{serviceId}/providers,provider.add,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Provider,"mcp,rest,cli",kuma_provider_delete,Delete provider (repoint active),DELETE /v1/providers/{providerId},provider.delete,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Provider,"mcp,rest,cli",kuma_provider_list,Providers of a service,GET /v1/services/{serviceId}/providers,provider.list,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Provider,"mcp,rest,cli",kuma_provider_set_ports,Replace port mappings for a provider,PUT /v1/providers/{providerId}/ports,provider.set_ports,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Provider,"mcp,rest,cli",kuma_provider_update,Update provider config (versioned),PATCH /v1/providers/{providerId},provider.update,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_create,"Create service (+ default provider, ports, groups, star)",POST /v1/workspaces/{workspaceId}/services,service.create,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_delete,Delete service,DELETE /v1/services/{serviceId},service.delete,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_duplicate,"Duplicate with ""(Copy)""",POST /v1/services/{serviceId}/duplicate,service.duplicate,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_get,"Service detail (providers, ports, groups)",GET /v1/services/{serviceId},service.get,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_list,Deck items with filter/sort/search,GET /v1/services,service.list,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_preflight,Run `ServiceConfigurationValidator` (+ async k8s target probe),POST /v1/services/{serviceId}/preflight,service.preflight,done,done,,y,—,y,y,y,2026-11-08,Structural validation D0; live port check needs E1
-Service,"mcp,rest,cli",kuma_service_restart,"Stop, 300 ms, start",POST /v1/services/{serviceId}/restart,service.restart,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_set_disabled,Enable/disable,PUT /v1/services/{serviceId}/disabled,service.set_disabled,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_set_groups,Replace group membership,PUT /v1/services/{serviceId}/groups,service.set_groups,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_set_starred,Star/unstar (explicit value or toggle),PUT /v1/services/{serviceId}/starred,service.set_starred,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_start,Start (idempotent),POST /v1/services/{serviceId}/start,service.start,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_start_all,Bulk start by workspace/filter/group,POST /v1/services/start-all,service.start_all,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_status,Runtime state for one service,GET /v1/services/{serviceId}/status,service.status,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_statuses,Runtime state for many/all services,GET /v1/services/statuses,service.statuses,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_stop,Stop (coalesced),POST /v1/services/{serviceId}/stop,service.stop,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_stop_all,Bulk stop,POST /v1/services/stop-all,service.stop_all,done,done,,n,—,y,y,y,2026-11-08,Needs kuma-exec
-Service,"mcp,rest,cli",kuma_service_switch_provider,Change active provider (stop/restart semantics),POST /v1/services/{serviceId}/switch-provider,service.switch_provider,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_toggle_group,Toggle one group membership,POST /v1/services/{serviceId}/groups/{groupId}/toggle,service.toggle_group,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Service,"mcp,rest,cli",kuma_service_update,Update service metadata (versioned),PATCH /v1/services/{serviceId},service.update,done,done,,y,—,y,y,y,2026-11-08,Epic C2+D data layer RPC
-Settings,"mcp,rest,cli",kuma_settings_get,One setting,GET /v1/settings/{key},settings.get,done,done,DT-SET-01;07;17,y,y,y,y,y,2026-11-08,Fase C
-Settings,"mcp,rest,cli",kuma_settings_list,All settings with defaults and effective values,GET /v1/settings,settings.list,done,done,DT-SET-01;33,y,y,y,y,y,2026-11-08,Fase C; socket smoke 26 keys
-Settings,"mcp,rest,cli",kuma_settings_reset,Reset preferences to defaults (DB untouched),POST /v1/settings/reset,settings.reset,done,done,DT-SET-09;32,y,y,y,y,y,2026-11-08,Fase C
-Settings,"mcp,rest,cli",kuma_settings_set,Set one or many settings (validated),PUT /v1/settings,settings.set,done,done,DT-SET-02..07;17;18;35,y,y,y,y,y,2026-11-08,settings.changed via EventBus after commit; DT-SET-08/16/30 in D0
-Workspace,"mcp,rest,cli",kuma_workspace_clear_image,Remove avatar,DELETE /v1/workspaces/{workspaceId}/image,workspace.clear_image,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_create,Create (optional image),POST /v1/workspaces,workspace.create,done,done,DT-DAT-04,y,n,y,y,y,2026-11-08,2026-11-08
-Workspace,"mcp,rest,cli",kuma_workspace_delete,"Delete with cascade (stops services first, DEV)",DELETE /v1/workspaces/{workspaceId},workspace.delete,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_get,One workspace,GET /v1/workspaces/{workspaceId},workspace.get,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_get_image,Fetch avatar bytes (optional thumbnail size),GET /v1/workspaces/{workspaceId}/image,workspace.get_image,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_list,Ordered workspaces,GET /v1/workspaces,workspace.list,done,done,DT-DAT-04,y,n,y,y,y,2026-11-08,2026-11-08
-Workspace,"mcp,rest,cli",kuma_workspace_reorder,Persist new order,PUT /v1/workspaces/order,workspace.reorder,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_set_image,Set avatar from bytes,PUT /v1/workspaces/{workspaceId}/image,workspace.set_image,done,done,,y,—,y,y,y,2026-11-08,Fase D
-Workspace,"mcp,rest,cli",kuma_workspace_update,Rename / change image,PATCH /v1/workspaces/{workspaceId},workspace.update,done,done,,y,—,y,y,y,2026-11-08,Fase D
+Daemon,"mcp,rest,cli",kuma_daemon_ping,Liveness + protocol version,GET /v1/daemon/ping,daemon.ping,done,done,DT-LIF-01;DT-LIF-01;DT-LIF-01,y,y,y,y,y,2026-11-08,
+Daemon,cli_only,,Rotate REST bearer token file (Unix socket only; 02 ADD-31),,daemon.rotate_api_token,done,done,dt_sec_rotate,y,n,n,n,n,2026-11-08,Method name in kuma-protocol only
+Daemon,"mcp,rest,cli",kuma_daemon_shutdown,Graceful stop (optional stop services),POST /v1/daemon/shutdown,daemon.shutdown,done,done,DT-LIF-02;DT-LIF-03;DT-LIF-02;DT-LIF-02,y,y,y,y,y,2026-11-08,stop-all before shutdown via kuma-exec
+Daemon,"mcp,rest,cli",kuma_daemon_status,"Version, uptime, db path, counts, running services",GET /v1/daemon/status,daemon.status,done,done,DT-LIF-11;DT-LIF-11;DT-LIF-11,y,y,y,y,y,2026-11-08,runningServices/adoptReport need kuma-exec (E1)
+DataPort,"mcp,rest,cli",kuma_data_export,Export all / workspace / service,POST /v1/data/export,data.export,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+DataPort,"mcp,rest,cli",kuma_data_export_service_json,"Single-service JSON (""Copy Config"")",GET /v1/services/{serviceId}/export-json,data.export_service_json,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+DataPort,"mcp,rest,cli",kuma_data_factory_reset,"Stop everything, wipe DB/prefs/images",POST /v1/data/factory-reset,data.factory_reset,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+DataPort,"mcp,rest,cli",kuma_data_import,Import with strategy and selection,POST /v1/data/import,data.import,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+DataPort,"mcp,rest,cli",kuma_data_import_preview,Parse any backup (full or single) into a summary,POST /v1/data/import/preview,data.import_preview,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Environment,"mcp,rest,cli",kuma_env_dependencies,Scan kubectl/kubeconfig/docker/podman/cloudflared/ngrok,GET /v1/env/dependencies,env.dependencies,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Environment,"mcp,rest,cli",kuma_env_path,Resolved PATH string and sources,GET /v1/env/path,env.path,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Environment,"mcp,rest,cli",kuma_env_refresh,Drop PATH cache and re-resolve,POST /v1/env/refresh,env.refresh,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Environment,"mcp,rest,cli",kuma_env_resolve_executable,Resolve a command name or path to executable,POST /v1/env/resolve-executable,env.resolve_executable,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Environment,"mcp,rest,cli",kuma_env_validate_binary,`DependencyChecker.validateCustomBinary`,POST /v1/env/validate-binary,env.validate_binary,done,done,DT-SET-10..15;DT-SET-10;DT-SET-10,y,n,y,y,y,2026-11-08,2026-11-08
+Events,"mcp,rest,cli",kuma_events_subscribe,Subscribe to event topics (with replay),GET /v1/events/stream (SSE); optional GET /v1/events/ws,events.subscribe,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Events,"mcp,rest,cli",kuma_events_unsubscribe,Cancel subscription,DELETE /v1/events/subscriptions/{subscriptionId},events.unsubscribe,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Execution,"mcp,rest,cli",kuma_ports_check,"Who occupies a local port, policy outcome",POST /v1/ports/check,ports.check,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Execution,"mcp,rest,cli",kuma_runtime_adopt_report,Result of last orphan adoption pass,GET /v1/runtime/adopt-report,runtime.adopt_report,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,adopted count from ExecEngine
+Group,"mcp,rest,cli",kuma_group_create,Create group,POST /v1/workspaces/{workspaceId}/groups,group.create,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Group,"mcp,rest,cli",kuma_group_delete,Delete group (services stay),DELETE /v1/groups/{groupId},group.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Group,"mcp,rest,cli",kuma_group_list,Groups of a workspace,GET /v1/workspaces/{workspaceId}/groups,group.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Group,"mcp,rest,cli",kuma_group_reorder,Persist new order,PUT /v1/workspaces/{workspaceId}/groups/order,group.reorder,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Group,"mcp,rest,cli",kuma_group_update,Rename group,PATCH /v1/groups/{groupId},group.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Kubernetes,"mcp,rest,cli",kuma_k8s_namespaces,List namespaces,GET /v1/k8s/namespaces,k8s.namespaces,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl subprocess; cluster errors returned in payload
+Kubernetes,"mcp,rest,cli",kuma_k8s_resolve_target,Resolve pattern to concrete resource,POST /v1/k8s/resolve-target,k8s.resolve_target,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,pattern resolve stub; full §07 matcher pending
+Kubernetes,"mcp,rest,cli",kuma_k8s_resources,List pods/services/deployments,GET /v1/k8s/resources,k8s.resources,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl get all; no live cache
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_contexts,Parse contexts + current context,GET /v1/kubeconfigs/{kubeconfigId}/contexts,kubeconfig.contexts,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,contexts from store parser only
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_create,Register file-backed or pasted kubeconfig,POST /v1/kubeconfigs,kubeconfig.create,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_delete,Delete (not Default),DELETE /v1/kubeconfigs/{kubeconfigId},kubeconfig.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_get,One kubeconfig (content decrypted on request),GET /v1/kubeconfigs/{kubeconfigId},kubeconfig.get,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_list,Registered kubeconfigs (+ virtual Default),GET /v1/kubeconfigs,kubeconfig.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_test_connection,`kubectl version` probe with cache,POST /v1/kubeconfigs/{kubeconfigId}/test-connection,kubeconfig.test_connection,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl version probe; no cache TTL
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_update,Update,PATCH /v1/kubeconfigs/{kubeconfigId},kubeconfig.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Logs,"mcp,rest,cli",kuma_logs_clear,Clear buffer,DELETE /v1/services/{serviceId}/logs/activity,logs.clear,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,RPC snapshot; SSE multiplex on REST only
+Logs,"mcp,rest,cli",kuma_logs_tail,Activity-log buffer for a service,GET /v1/services/{serviceId}/logs/activity,logs.tail,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Logs,"mcp,rest,cli",kuma_logs_workload_tail,"One-shot workload logs (`kubectl logs`, compose logs, spool)",GET /v1/services/{serviceId}/logs/workload,logs.workload_tail,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,activity buffer + spool; kubectl/compose tail pending
+Provider,"mcp,rest,cli",kuma_provider_add,Add provider,POST /v1/services/{serviceId}/providers,provider.add,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Provider,"mcp,rest,cli",kuma_provider_delete,Delete provider (repoint active),DELETE /v1/providers/{providerId},provider.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Provider,"mcp,rest,cli",kuma_provider_list,Providers of a service,GET /v1/services/{serviceId}/providers,provider.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Provider,"mcp,rest,cli",kuma_provider_set_ports,Replace port mappings for a provider,PUT /v1/providers/{providerId}/ports,provider.set_ports,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Provider,"mcp,rest,cli",kuma_provider_update,Update provider config (versioned),PATCH /v1/providers/{providerId},provider.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_create,"Create service (+ default provider, ports, groups, star)",POST /v1/workspaces/{workspaceId}/services,service.create,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_delete,Delete service,DELETE /v1/services/{serviceId},service.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_duplicate,"Duplicate with ""(Copy)""",POST /v1/services/{serviceId}/duplicate,service.duplicate,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_get,"Service detail (providers, ports, groups)",GET /v1/services/{serviceId},service.get,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_list,Deck items with filter/sort/search,GET /v1/services,service.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_preflight,Run `ServiceConfigurationValidator` (+ async k8s target probe),POST /v1/services/{serviceId}/preflight,service.preflight,done,partial,DT-PRV;DT-PRV,y,—,y,y,y,2026-11-08,sync validator; async k8s.target_resolve pending
+Service,"mcp,rest,cli",kuma_service_restart,"Stop, 300 ms, start",POST /v1/services/{serviceId}/restart,service.restart,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_set_disabled,Enable/disable,PUT /v1/services/{serviceId}/disabled,service.set_disabled,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_set_groups,Replace group membership,PUT /v1/services/{serviceId}/groups,service.set_groups,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_set_starred,Star/unstar (explicit value or toggle),PUT /v1/services/{serviceId}/starred,service.set_starred,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_start,Start (idempotent),POST /v1/services/{serviceId}/start,service.start,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_start_all,Bulk start by workspace/filter/group,POST /v1/services/start-all,service.start_all,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_status,Runtime state for one service,GET /v1/services/{serviceId}/status,service.status,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_statuses,Runtime state for many/all services,GET /v1/services/statuses,service.statuses,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_stop,Stop (coalesced),POST /v1/services/{serviceId}/stop,service.stop,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_stop_all,Bulk stop,POST /v1/services/stop-all,service.stop_all,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_switch_provider,Change active provider (stop/restart semantics),POST /v1/services/{serviceId}/switch-provider,service.switch_provider,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_toggle_group,Toggle one group membership,POST /v1/services/{serviceId}/groups/{groupId}/toggle,service.toggle_group,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Service,"mcp,rest,cli",kuma_service_update,Update service metadata (versioned),PATCH /v1/services/{serviceId},service.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
+Settings,"mcp,rest,cli",kuma_settings_get,One setting,GET /v1/settings/{key},settings.get,done,done,DT-SET-01;07;17;DT-SET-07;DT-SET-07,y,y,y,y,y,2026-11-08,Fase C
+Settings,"mcp,rest,cli",kuma_settings_list,All settings with defaults and effective values,GET /v1/settings,settings.list,done,done,DT-SET-01;33;DT-SET-01;DT-SET-01,y,y,y,y,y,2026-11-08,Fase C; socket smoke 26 keys
+Settings,"mcp,rest,cli",kuma_settings_reset,Reset preferences to defaults (DB untouched),POST /v1/settings/reset,settings.reset,done,done,DT-SET-09;32;DT-SET-09;DT-SET-09,y,y,y,y,y,2026-11-08,Fase C
+Settings,"mcp,rest,cli",kuma_settings_set,Set one or many settings (validated),PUT /v1/settings,settings.set,done,done,DT-SET-02..07;17;18;35;DT-SET-02;DT-SET-02,y,y,y,y,y,2026-11-08,settings.changed via EventBus after commit; DT-SET-08/16/30 in D0
+Workspace,"mcp,rest,cli",kuma_workspace_clear_image,Remove avatar,DELETE /v1/workspaces/{workspaceId}/image,workspace.clear_image,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_create,Create (optional image),POST /v1/workspaces,workspace.create,done,done,DT-DAT-04;DT-DAT-04;DT-DAT-04,y,n,y,y,y,2026-11-08,2026-11-08
+Workspace,"mcp,rest,cli",kuma_workspace_delete,"Delete with cascade (stops services first, DEV)",DELETE /v1/workspaces/{workspaceId},workspace.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_get,One workspace,GET /v1/workspaces/{workspaceId},workspace.get,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_get_image,Fetch avatar bytes (optional thumbnail size),GET /v1/workspaces/{workspaceId}/image,workspace.get_image,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_list,Ordered workspaces,GET /v1/workspaces,workspace.list,done,done,DT-DAT-04;DT-DAT-04;DT-DAT-04,y,n,y,y,y,2026-11-08,2026-11-08
+Workspace,"mcp,rest,cli",kuma_workspace_reorder,Persist new order,PUT /v1/workspaces/order,workspace.reorder,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_set_image,Set avatar from bytes,PUT /v1/workspaces/{workspaceId}/image,workspace.set_image,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D
+Workspace,"mcp,rest,cli",kuma_workspace_update,Rename / change image,PATCH /v1/workspaces/{workspaceId},workspace.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,Fase D

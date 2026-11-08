@@ -17,6 +17,8 @@ Catalog of planned MCP tools and their RPC/REST mapping. **Status columns track 
 | `verified` | ISO date | Last row review against codebase/tests. |
 | `notes` | text | Gaps, partial behavior, phase tags. |
 
+**Works-well gate:** `logic_status=done` requires honest `notes` (no placeholder “Fase not started”), `auto_test=y` requires `dt_coverage`, and `python3 docs/specs/daemon/validate_mcp_tools_honesty.py --strict` must pass. Bulk column sync: `python3 docs/specs/daemon/sync_mcp_tools_honesty.py`.
+
 **Update this file** when a phase lands (change `rpc_status` / tests, bump `verified`).
 
 Quick verify:

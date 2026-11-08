@@ -14,6 +14,14 @@ fn dt_dataport_export_import_roundtrip() {
 }
 
 #[test]
+fn dt_dataport_export_all_scope() {
+    let dir = TempDir::new().unwrap();
+    let store = StoreHandle::open(dir.path()).unwrap();
+    let export = store.dataport().export().unwrap();
+    assert!(export.get("workspaces").is_some());
+}
+
+#[test]
 fn dt_dataport_factory_reset_keeps_master_key() {
     let dir = TempDir::new().unwrap();
     let store = StoreHandle::open(dir.path()).unwrap();

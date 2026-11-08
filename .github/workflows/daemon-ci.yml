@@ -50,7 +50,10 @@ jobs:
             cargo-daemon-${{ runner.os }}-
 
       - name: Validate mcp-tools.csv vs dispatch
-        run: python3 ../docs/specs/daemon/validate_mcp_tools_csv.py
+        run: python3 ../docs/specs/daemon/validate_mcp_tools_csv.py --strict
+
+      - name: Validate mcp-tools.csv honesty (works-well)
+        run: python3 ../docs/specs/daemon/validate_mcp_tools_honesty.py --strict
 
       - name: check_traceability (spec surfaces)
         run: python3 ../docs/specs/daemon/check_traceability.py

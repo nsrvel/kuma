@@ -75,11 +75,22 @@ pub fn resources(id: Option<Value>, store: &StoreHandle, params: &Value) -> Resp
 }
 
 pub fn resolve_target(id: Option<Value>, _store: &KubeConfigStore, params: &Value) -> Response {
+    let target = params
+        .get("targetName")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    let pattern = params
+        .get("usePattern")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     Response::ok(
         id,
         json!({
-            "resolved": params.get("targetName").cloned().unwrap_or(Value::Null),
+            "resolvedTarget": if target.is_empty() { Value::Null } else { json!(target) },
+            "usePattern": pattern,
             "liveTarget": Value::Null,
+            "matched": !target.is_empty(),
         }),
     )
 }
