@@ -126,15 +126,18 @@ impl ProviderStore {
             check_provider_stale(&conn, &id, exp)?;
         }
         let now = now_grdb_datetime();
-        let label = params
-            .get("label")
-            .and_then(|v| v.as_str())
-            .or(row.label.as_deref());
         let ptype = params
             .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or(&row.type_);
         crate::validation::reject_foreign_fields(ptype, params)?;
+        crate::validation::check_source_conflict(params)?;
+        let label = crate::validation::normalize_label(
+            params
+                .get("label")
+                .and_then(|v| v.as_str())
+                .or(row.label.as_deref()),
+        );
         conn.execute(
             "UPDATE provider SET type = ?1, label = ?2, updatedAt = ?3 WHERE id = ?4",
             rusqlite::params![ptype, label, now, id],
@@ -224,11 +227,19 @@ impl ProviderStore {
         if prov_sid != sid {
             return Err(ServiceError::ProviderNotFound { id: pid });
         }
+        let ptype: String = conn
+            .query_row("SELECT type FROM provider WHERE id = ?1", [&pid], |r| r.get(0))
+            .map_err(|e| io_err(&e.to_string()))?;
         let ports = params
             .get("ports")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
+        if !ports.is_empty() && !crate::validation::ports_applicable(&ptype) {
+            return Err(ServiceError::InvalidPort {
+                message: "KUMA_PRV_PORTS_NOT_APPLICABLE".into(),
+            });
+        }
         for (i, row) in ports.iter().enumerate() {
             let local = row.get("localPort").and_then(|v| v.as_i64());
             let remote = row.get("remotePort").and_then(|v| v.as_i64());
@@ -382,6 +393,7 @@ fn apply_provider_patch(
     params: &Map<String, Value>,
     now: &str,
 ) -> Result<(), ServiceError> {
+    crate::validation::check_source_conflict(params)?;
     patch_str(conn, id, now, params, "runCommand")?;
     patch_str(conn, id, now, params, "workingDirectory")?;
     patch_str(conn, id, now, params, "sshHost")?;
@@ -436,7 +448,7 @@ fn apply_provider_patch(
         )
         .map_err(|e| io_err(&e.to_string()))?;
     }
-    Ok(())
+    crate::validation::enforce_stored_exclusivity(conn, id, now)
 }
 
 fn patch_str(

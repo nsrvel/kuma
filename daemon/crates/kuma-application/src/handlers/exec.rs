@@ -97,9 +97,10 @@ pub fn stop(
     let Some(sid) = params.get("id").and_then(|v| v.as_str()) else {
         return Response::err(id, ERR_KUMA, "missing id");
     };
+    let _ = store.runtime_process().mark_intentional_stop(sid);
     match stop_service(exec, sid) {
         Ok(()) => {
-            let _ = store.runtime_process().clear(sid);
+            let _ = store.runtime_process().delete_row(sid);
             let _ = bus.publish(
                 "service.state_changed",
                 json!({ "serviceID": sid, "status": "stopped" }),
@@ -187,14 +188,7 @@ pub fn stop_all(exec: &Arc<ExecEngine>, id: Option<Value>) -> Response {
 }
 
 pub fn adopt_report(id: Option<Value>, exec: &Arc<ExecEngine>) -> Response {
-    Response::ok(
-        id,
-        json!({
-            "adopted": exec.adopted_count(),
-            "released": exec.run_records_json()["count"],
-            "lastRunAt": Value::Null,
-        }),
-    )
+    Response::ok(id, exec.adoption_report_json())
 }
 
 #[allow(dead_code)]

@@ -1,4 +1,5 @@
 use crate::service::service_row;
+use crate::validation::configuration_issues;
 use kuma_domain::ServiceError;
 use kuma_exec::check_port;
 use rusqlite::Connection;
@@ -6,6 +7,13 @@ use serde_json::{json, Value};
 
 pub fn service_preflight(conn: &Connection, service_id: &str) -> Result<Value, ServiceError> {
     let service = service_row(conn, service_id)?;
+    if service.get("isDisabled").and_then(|v| v.as_bool()) == Some(true) {
+        return Ok(json!({
+            "ok": true,
+            "serviceDisabled": true,
+            "issues": [],
+        }));
+    }
     let name = service
         .get("name")
         .and_then(|v| v.as_str())
@@ -16,99 +24,64 @@ pub fn service_preflight(conn: &Connection, service_id: &str) -> Result<Value, S
         issues.push(json!({
             "code": "KUMA_SVC_NAME_EMPTY",
             "message": "Name cannot be empty",
+            "severity": "blocking",
         }));
     }
     let providers = service
         .get("providers")
         .and_then(|v| v.as_array())
-        .map(|a| a.len())
-        .unwrap_or(0);
-    if providers == 0 {
+        .cloned()
+        .unwrap_or_default();
+    if providers.is_empty() {
         issues.push(json!({
-            "code": "KUMA_SVC_LAST_PROVIDER",
-            "message": "Service has no provider",
+            "code": "provider.missing",
+            "message": "Add a provider before starting this service.",
+            "severity": "blocking",
         }));
+        return Ok(json!({ "ok": false, "issues": issues }));
     }
-    let active = service.get("activeProviderID");
-    if active.map(|v| v.is_null()).unwrap_or(true) && providers > 0 {
+    let active_id = service.get("activeProviderID").and_then(|v| v.as_str());
+    let provider = active_id.and_then(|id| {
+        providers
+            .iter()
+            .find(|p| p.get("id").and_then(|v| v.as_str()) == Some(id))
+    });
+    let Some(provider) = provider else {
         issues.push(json!({
             "code": "KUMA_SVC_PROVIDER_NOT_FOUND",
             "message": "Active provider not set",
+            "severity": "blocking",
         }));
-    }
-    if let Some(active) = service.get("activeProviderID").and_then(|v| v.as_str()) {
-        if let Ok(providers) = provider_list(conn, active) {
-            if let Some(ptype) = providers.get("type").and_then(|v| v.as_str()) {
-                if ptype == "shell" {
-                    let cmd = providers
-                        .get("runCommand")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .trim();
-                    if cmd.is_empty() {
-                        issues.push(json!({
-                            "code": "KUMA_PRV_SHELL_COMMAND",
-                            "message": "Shell provider missing runCommand",
-                        }));
-                    }
-                }
-                if ptype == "ssh" {
-                    let host = providers
-                        .get("sshHost")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .trim();
-                    if host.is_empty() {
-                        issues.push(json!({
-                            "code": "KUMA_PRV_SSH_HOST",
-                            "message": "SSH provider missing sshHost",
-                        }));
-                    }
-                }
-            }
-        }
-    }
-    if let Some(mappings) = service
+        return Ok(json!({ "ok": false, "issues": issues }));
+    };
+    let ports = service
         .get("portMappings")
         .and_then(|v| v.as_array())
-    {
-        for m in mappings {
-            let port = m.get("localPort").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
-            if port == 0 {
-                continue;
-            }
-            let probe = check_port(port);
-            if probe.get("occupied").and_then(|v| v.as_bool()) == Some(true) {
-                issues.push(json!({
-                    "code": "KUMA_EXE_PORT_IN_USE",
-                    "message": format!("Port {port} is already in use"),
-                    "localPort": port,
-                }));
-            }
+        .cloned()
+        .unwrap_or_default();
+    let auth_key = provider
+        .get("sshPassword")
+        .map(|v| v.is_null())
+        .unwrap_or(true);
+    issues.extend(configuration_issues(provider, &ports, auth_key));
+    for m in &ports {
+        let port = m.get("localPort").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
+        if port == 0 {
+            continue;
+        }
+        let probe = check_port(port);
+        if probe.get("occupied").and_then(|v| v.as_bool()) == Some(true) {
+            issues.push(json!({
+                "code": "KUMA_EXE_PORT_IN_USE",
+                "message": format!("Port {port} is already in use"),
+                "localPort": port,
+                "severity": "blocking",
+            }));
         }
     }
+    let ok = issues.is_empty();
     Ok(json!({
-        "ok": issues.is_empty(),
+        "ok": ok,
         "issues": issues,
     }))
-}
-
-fn provider_list(conn: &Connection, provider_id: &str) -> Result<Value, ServiceError> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT type, runCommand, sshHost FROM provider WHERE id = ?1",
-        )
-        .map_err(|e| ServiceError::InvalidPort {
-            message: e.to_string(),
-        })?;
-    stmt.query_row([provider_id], |row| {
-        Ok(json!({
-            "type": row.get::<_, String>(0)?,
-            "runCommand": row.get::<_, Option<String>>(1)?,
-            "sshHost": row.get::<_, Option<String>>(2)?,
-        }))
-    })
-    .map_err(|_| ServiceError::ProviderNotFound {
-        id: provider_id.into(),
-    })
 }

@@ -1,3 +1,4 @@
+use crate::compose::{materialize_compose_file, remove_ephemeral_compose};
 use crate::process::{apply_working_dir, provider_type, spawn_managed, trimmed_cmd};
 use crate::runtime::{ExecEngine, ExecError};
 use serde_json::Value;
@@ -41,12 +42,31 @@ fn start_service_inner(
 
 pub fn stop_service(engine: &Arc<ExecEngine>, service_id: &str) -> Result<(), ExecError> {
     engine.set_stopping(service_id);
+    if let Some(cat) = engine.run_category(service_id) {
+        if cat == "docker" || cat == "podman" {
+            let _ = compose_down(engine, service_id, &cat);
+            remove_ephemeral_compose(service_id);
+        }
+    }
     if let Some(mut child) = engine.take_child(service_id) {
         let _ = child.kill();
         let _ = child.wait();
     }
     engine.set_stopped(service_id);
     engine.record_release();
+    Ok(())
+}
+
+fn compose_down(_engine: &Arc<ExecEngine>, service_id: &str, ptype: &str) -> Result<(), ExecError> {
+    let bin = if ptype == "podman" {
+        std::env::var("KUMA_PODMAN_BIN").unwrap_or_else(|_| "podman".into())
+    } else {
+        std::env::var("KUMA_DOCKER_BIN").unwrap_or_else(|_| "docker".into())
+    };
+    let mut command = std::process::Command::new(bin);
+    command.args(["compose", "down"]);
+    command.arg("-p").arg(service_id.to_uppercase());
+    let _ = command.status();
     Ok(())
 }
 
@@ -166,16 +186,26 @@ fn start_container(
         apply_working_dir(&mut command, provider);
         return spawn_managed(engine, service_id, ptype, provider, command, is_reconnect);
     }
+    let (compose_path, ephemeral) = materialize_compose_file(service_id, provider)?;
     let mut command = Command::new(bin);
-    command.args(["compose", "up", "-d"]);
-    if let Some(path) = provider
-        .get("composeFilePath")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-    {
-        command.arg("-f").arg(path);
+    command
+        .args(["compose", "-p", &service_id.to_uppercase(), "-f"])
+        .arg(&compose_path)
+        .args(["up", "-d"]);
+    if ephemeral {
+        if let Some(wd) = provider
+            .get("workingDirectory")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+        {
+            command.arg("--project-directory").arg(wd.trim());
+            command.current_dir(wd.trim());
+        } else {
+            command.current_dir(compose_path.parent().unwrap_or(&compose_path));
+        }
+    } else {
+        apply_working_dir(&mut command, provider);
     }
-    apply_working_dir(&mut command, provider);
     spawn_managed(engine, service_id, ptype, provider, command, is_reconnect)
 }
 

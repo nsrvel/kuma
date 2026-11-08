@@ -80,12 +80,21 @@ fn read_key(path: &Path) -> Result<Vec<u8>, StoreError> {
     let data = std::fs::read(path).map_err(|e| StoreError::DbOpenFailed {
         detail: e.to_string(),
     })?;
-    if data.len() != 32 {
-        return Err(StoreError::DbOpenFailed {
-            detail: format!("master.key length {}", data.len()),
-        });
+    if data.len() == 32 {
+        return Ok(data);
     }
-    Ok(data)
+  let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let backup = path.with_file_name(format!(
+        "master.key.corrupt-{ms}"
+    ));
+    let _ = std::fs::rename(path, &backup);
+    let key = random_32()?;
+    write_key(path, &key)?;
+    set_mode(path, 0o600)?;
+    Ok(key)
 }
 
 fn aes_gcm_encrypt(key: &[u8], plain: &[u8]) -> Result<String, StoreError> {

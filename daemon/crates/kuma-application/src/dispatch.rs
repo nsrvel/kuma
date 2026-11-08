@@ -8,6 +8,7 @@ use crate::lifecycle::{DataCounts, LifecycleState};
 use kuma_protocol::jsonrpc::{Request, Response, ERR_INVALID_REQUEST, ERR_KUMA, ERR_METHOD_NOT_FOUND};
 use kuma_protocol::methods;
 use kuma_store::StoreHandle;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 pub struct Application {
@@ -16,6 +17,7 @@ pub struct Application {
     request_shutdown: Arc<dyn Fn() + Send + Sync>,
     lifecycle: LifecycleState,
     counts: DataCounts,
+    rest_token_epoch: Arc<AtomicU64>,
 }
 
 pub enum DispatchOutcome {
@@ -37,7 +39,16 @@ impl Application {
             request_shutdown,
             lifecycle,
             counts,
+            rest_token_epoch: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    pub fn bump_rest_token_epoch(&self) {
+        self.rest_token_epoch.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn rest_token_epoch(&self) -> u64 {
+        self.rest_token_epoch.load(Ordering::SeqCst)
     }
 
     pub fn exec(&self) -> &Arc<ExecEngine> {
@@ -94,10 +105,21 @@ impl Application {
                 );
                 DispatchOutcome::ShutdownRequested(response)
             }
-            methods::DAEMON_ROTATE_API_TOKEN => DispatchOutcome::Reply(daemon::rotate_api_token(
-                req.id,
-                store.data_dir(),
-            )),
+            methods::DAEMON_ROTATE_API_TOKEN => {
+                if !matches!(ctx.transport, crate::context::Transport::Unix) {
+                    return DispatchOutcome::Reply(Response::err(
+                        req.id,
+                        ERR_KUMA,
+                        "This operation is only allowed over the local Unix socket.",
+                    ));
+                }
+                let resp = daemon::rotate_api_token(req.id, store.data_dir());
+                if resp.error.is_none() {
+                    self.bump_rest_token_epoch();
+                    store.audit().log_token_rotated();
+                }
+                DispatchOutcome::Reply(resp)
+            }
             methods::SETTINGS_LIST => {
                 DispatchOutcome::Reply(settings::list(req.id, settings, &req.params))
             }

@@ -1,3 +1,4 @@
+use crate::supervisor::StateNotify;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::process::Child;
@@ -49,6 +50,8 @@ pub struct ExecEngine {
     run_records: Mutex<HashMap<String, RunRecord>>,
     log_sink: Mutex<Option<Arc<LogSink>>>,
     reconnect_budget: Mutex<HashMap<String, u8>>,
+    state_notifier: Mutex<Option<StateNotify>>,
+    adoption_details: Mutex<Vec<Value>>,
 }
 
 impl ExecEngine {
@@ -63,6 +66,42 @@ impl ExecEngine {
             log_sink: Mutex::new(None),
             run_records: Mutex::new(HashMap::new()),
             reconnect_budget: Mutex::new(HashMap::new()),
+            state_notifier: Mutex::new(None),
+            adoption_details: Mutex::new(Vec::new()),
+        })
+    }
+
+    pub fn set_state_notifier(&self, notifier: StateNotify) {
+        *self.state_notifier.lock().unwrap() = Some(notifier);
+    }
+
+    fn emit_state(&self, service_id: &str) {
+        let status = self.snapshot(service_id).status;
+        if let Some(n) = self.state_notifier.lock().unwrap().as_ref() {
+            n(service_id, &status);
+        }
+    }
+
+    pub fn adopt_persisted_processes(&self, rows: &[(String, u32)]) {
+        for (sid, pid) in rows {
+            self.set_running(sid);
+            self.adoption_details.lock().unwrap().push(json!({
+                "serviceID": sid,
+                "pid": pid,
+                "adopted": true,
+            }));
+        }
+        if !rows.is_empty() {
+            *self.adopted.lock().unwrap() = rows.len() as u64;
+        }
+    }
+
+    pub fn adoption_report_json(&self) -> Value {
+        let details = self.adoption_details.lock().unwrap().clone();
+        json!({
+            "adopted": self.adopted_count(),
+            "released": self.released_count(),
+            "services": details,
         })
     }
 
@@ -157,6 +196,7 @@ impl ExecEngine {
                 status_title: "Starting".into(),
             },
         );
+        self.emit_state(service_id);
     }
 
     pub fn set_stopping(&self, service_id: &str) {
@@ -168,6 +208,7 @@ impl ExecEngine {
                 status_title: "Stopping".into(),
             },
         );
+        self.emit_state(service_id);
     }
 
     pub fn set_reconnecting(&self, service_id: &str) {
@@ -179,20 +220,20 @@ impl ExecEngine {
                 status_title: "Reconnecting".into(),
             },
         );
+        self.emit_state(service_id);
     }
 
     pub fn scan_spool_adoption(&self) {
+        // ponytail: ndjson spool count only; full stack adoption in adopt_persisted_processes
         let dir = kuma_protocol::paths::runtime_dir().join("logs");
         let Ok(read) = std::fs::read_dir(dir) else {
             return;
         };
-        let mut n = 0u64;
-        for entry in read.flatten() {
-            if entry.path().extension().is_some_and(|e| e == "ndjson") {
-                n += 1;
-            }
-        }
-        if n > 0 {
+        let n = read
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "ndjson"))
+            .count() as u64;
+        if n > 0 && self.adopted_count() == 0 {
             *self.adopted.lock().unwrap() = n;
         }
     }
@@ -245,6 +286,7 @@ impl ExecEngine {
                 status_title: "Running".into(),
             },
         );
+        self.emit_state(service_id);
     }
 
     pub fn set_stopped(&self, service_id: &str) {
@@ -253,6 +295,7 @@ impl ExecEngine {
             RuntimeSnapshot::default(),
         );
         self.categories.lock().unwrap().remove(service_id);
+        self.emit_state(service_id);
     }
 
     pub fn stop_all(&self) -> usize {

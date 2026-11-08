@@ -199,15 +199,25 @@ async fn events_sse(state: RestState, headers: &HeaderMap) -> Response {
         Ok((_, v)) => serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()),
         Err((_, _, m)) => json!({ "error": m }).to_string(),
     };
+    let epoch = state.app.rest_token_epoch();
+    let app = Arc::clone(&state.app);
     let rx = state.app.store().events().live_subscribe();
-    let live = stream::unfold(rx, |rx| async move {
+    let live = stream::unfold((rx, epoch), move |(rx, epoch)| {
+        let app = Arc::clone(&app);
+        async move {
+        if app.rest_token_epoch() != epoch {
+            return None;
+        }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         loop {
+            if app.rest_token_epoch() != epoch {
+                return None;
+            }
             match rx.try_recv() {
                 Ok(line) => {
                     return Some((
                         Ok::<_, Infallible>(Event::default().data(line)),
-                        rx,
+                        (rx, epoch),
                     ));
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
@@ -215,6 +225,7 @@ async fn events_sse(state: RestState, headers: &HeaderMap) -> Response {
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
             }
+        }
         }
     });
     let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);
@@ -242,15 +253,25 @@ async fn logs_sse(
         serde_json::to_string(&state.app.store().logs().follow_snapshot(&sid)).unwrap_or_else(
             |_| "{}".into(),
         );
+    let epoch = state.app.rest_token_epoch();
+    let app = Arc::clone(&state.app);
     let rx = state.app.store().logs().subscribe(&sid);
-    let live = stream::unfold(rx, |rx| async move {
+    let live = stream::unfold((rx, epoch), move |(rx, epoch)| {
+        let app = Arc::clone(&app);
+        async move {
+        if app.rest_token_epoch() != epoch {
+            return None;
+        }
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         loop {
+            if app.rest_token_epoch() != epoch {
+                return None;
+            }
             match rx.try_recv() {
                 Ok(line) => {
                     return Some((
                         Ok::<_, Infallible>(Event::default().data(line)),
-                        rx,
+                        (rx, epoch),
                     ));
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
@@ -258,6 +279,7 @@ async fn logs_sse(
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
             }
+        }
         }
     });
     let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);

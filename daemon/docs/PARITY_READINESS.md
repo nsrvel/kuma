@@ -9,29 +9,23 @@
 | `cargo llvm-cov --fail-under-lines 90` | CI macOS job (`--exclude kuma-cli`) |
 | Swift `Kuma/` cutover | **Not in scope** until explicit gate decision |
 
-## Phase 4 delivered
+## Phases 5–12 delivered (this stack)
 
-- **SEC (H):** `audit.log` JSONL + rotation, `DispatchContext` (clientKind / reveal gate), peer-uid reject audit, `daemon.status` adoptReport + `restListenAddr`.
-- **Provider (I):** `KUMA_PRV_LOCKED` while running/starting/reconnecting; foreign-field subset on `provider.update`; shell/ssh preflight checks.
-- **Exec (J):** `starting` / `stopping` / `reconnecting` states; compose `-f` path; k8s `KUBECONFIG` + `--context`; spool adoption count on boot.
-- **Logs (K):** `LogBuffer::subscribe` + live REST logs SSE (tail snapshot + push).
-- **REST/CLI (L):** HTTP status map (404/409/422 subset), `kuma workspace get-image`, `kuma kubeconfig list`, LaunchAgent install/uninstall wired.
-- **Tests (M):** `dt_sec_audit`, `dt_prv_lock`, `dt_log_subscribe`.
-- **Follow-up slice:** live events SSE multiplex (`EventBus::live_subscribe`); MCP `clientKind`; `runtime_process` upsert/clear on exec start/stop/restart.
+- **Provider (5):** `configuration_issues`, `display_name` / compose image extract, URL normalize, source conflict + exclusivity, port applicability, expanded preflight.
+- **Exec (6):** `StateSupervisor` debounce → `service.state_changed`, boot `adopt_candidates`, `runtime_process` delete on stop, adoption report detail.
+- **Runners (7):** DEV-75 ephemeral compose path, compose down on stop, existing k8s/ssh/tunnel/pollers.
+- **SEC (8):** `token.rotated` audit, REST epoch closes SSE, corrupt `master.key` recovery, Unix-only rotate.
+- **K8s (9):** `k8s.*` kubectl subprocess handlers (existing crate).
+- **Logs/events (10):** workload spool tail, live events test, REST SSE token epoch.
+- **Surfaces (12):** `kuma service preflight`, `kuma runtime adopt-report`.
 
-## Earlier phases
+## Known gaps (honest vs full §5 matrix)
 
-- **REST:** CSV-driven [`rest_registry.rs`](../crates/kuma-daemon/src/rest_registry.rs) + fallback router (~73 routes), auth Host/Origin/revealSecrets, SSE for events + logs follow.
-- **SEC at rest:** encrypt provider/kube fields; redact on wire; `get_for_exec` decrypt.
-- **Exec:** auto-reconnect (3 attempts) for shell/ssh/kubernetes.
-- **DataPort / CLI subset** — see prior PR #17 notes.
-
-## Known gaps (honest vs §5 gate)
-
-- Full §05 provider validator + DT-PRV matrix
-- Supervisor / compose DEV-75 depth; boot-time PID adoption into `runtime_process` (start/stop persist pid only)
-- Full spec §02 audit field catalog + token rotation SSE close
-- Remaining INV-D / DT rows in 00–15
+- Full DT-PRV / DT-EXE / DT-SEC row coverage (hundreds of spec rows; subset covered by `dt_*` tests).
+- Full `ExecutionSupervisor` 500ms max-wait + compose stack adoption (§3.9).
+- REST `events/ws` optional route; RPC `logs.follow` streaming subscription id.
+- DataPort DT-DPT full matrix.
+- Swift client cutover.
 
 ## Smoke
 
@@ -39,6 +33,7 @@
 cd daemon && cargo test --workspace
 python3 ../docs/specs/daemon/validate_mcp_tools_csv.py --strict
 python3 ../docs/specs/daemon/validate_rest_routes.py
+python3 ../docs/specs/daemon/check_traceability.py
 KUMA_REST=1 cargo run -p kuma-cli -- daemon run &
 TOKEN=$(tr -d '\n' < "$KUMA_DATA_DIR/api-token")
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:9364/v1/daemon/ping

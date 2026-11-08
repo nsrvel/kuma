@@ -20,6 +20,14 @@ impl AuditLog {
         Ok(Self { path })
     }
 
+    pub fn log_token_rotated(&self) {
+        let _ = self.append(json!({
+            "kind": "auth",
+            "outcome": "ok",
+            "reason": "token.rotated",
+        }));
+    }
+
     pub fn log_auth_reject(&self, reason: &str) {
         let _ = self.append(json!({
             "kind": "auth",

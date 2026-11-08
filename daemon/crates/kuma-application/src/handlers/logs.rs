@@ -34,10 +34,32 @@ pub fn workload_tail(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Res
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let mut body = logs.tail(sid, 200);
+    let spool_lines = read_workload_spool(sid);
     if let Some(obj) = body.as_object_mut() {
         obj.insert("workload".into(), json!(true));
+        if !spool_lines.is_empty() {
+            let lines = obj
+                .entry("lines")
+                .or_insert_with(|| json!([]))
+                .as_array_mut();
+            if let Some(arr) = lines {
+                for line in spool_lines {
+                    arr.push(json!({ "text": line, "source": "spool" }));
+                }
+            }
+        }
     }
     Response::ok(id, body)
+}
+
+fn read_workload_spool(service_id: &str) -> Vec<String> {
+    let path = kuma_protocol::paths::runtime_dir()
+        .join("logs")
+        .join(format!("{service_id}.ndjson"));
+    let Ok(data) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    data.lines().map(str::to_string).collect()
 }
 
 pub fn follow(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {

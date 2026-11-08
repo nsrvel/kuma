@@ -42,6 +42,10 @@ enum Commands {
         #[command(subcommand)]
         command: KubeconfigCommands,
     },
+    Runtime {
+        #[command(subcommand)]
+        command: RuntimeCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -68,6 +72,15 @@ enum ServiceCommands {
         #[arg(long)]
         id: String,
     },
+    Preflight {
+        #[arg(long)]
+        id: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum RuntimeCommands {
+    AdoptReport,
 }
 
 #[derive(Subcommand)]
@@ -148,6 +161,25 @@ async fn main() -> Result<()> {
                         kuma_protocol::methods::SERVICE_STOP,
                         serde_json::json!({ "id": id }),
                     )
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&v)?);
+            }
+            ServiceCommands::Preflight { id } => {
+                let mut client = kuma_client::DaemonClient::connect_default().await?;
+                let v = client
+                    .call(
+                        kuma_protocol::methods::SERVICE_PREFLIGHT,
+                        serde_json::json!({ "id": id }),
+                    )
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&v)?);
+            }
+        },
+        Commands::Runtime { command } => match command {
+            RuntimeCommands::AdoptReport => {
+                let mut client = kuma_client::DaemonClient::connect_default().await?;
+                let v = client
+                    .call(methods::RUNTIME_ADOPT_REPORT, serde_json::json!({}))
                     .await?;
                 println!("{}", serde_json::to_string_pretty(&v)?);
             }

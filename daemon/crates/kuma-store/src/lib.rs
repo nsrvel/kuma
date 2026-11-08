@@ -49,6 +49,7 @@ pub use dataport::DataPort;
 pub use kubeconfig::KubeConfigStore;
 pub use logs::LogBuffer;
 pub use sec::{api_token_path, ensure_api_token, rotate_api_token, AuditLog, Vault};
+pub use validation::{display_name, extract_compose_image};
 
 pub type SqliteMasterRow = (String, String, String, Option<String>);
 

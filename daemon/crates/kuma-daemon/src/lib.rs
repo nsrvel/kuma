@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use kuma_application::{
     Application, ClientKind, DataCounts, DispatchContext, DispatchOutcome, LifecycleState,
 };
-use kuma_exec::ExecEngine;
+use kuma_exec::{ExecEngine, StateSupervisor};
 use kuma_protocol::jsonrpc::{self, Response, ERR_PARSE};
 use kuma_protocol::paths;
 use kuma_store::StoreHandle;
@@ -46,10 +46,25 @@ pub async fn run() -> Result<()> {
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
     let exec = ExecEngine::new();
     exec.scan_spool_adoption();
+    if let Ok(rows) = store.runtime_process().adopt_candidates() {
+        exec.adopt_persisted_processes(&rows);
+    }
     {
         let store_logs = Arc::clone(&store);
         exec.set_log_sink(Arc::new(move |sid, line| {
             store_logs.logs().append(sid, line);
+        }));
+    }
+    {
+        let store_events = Arc::clone(&store);
+        let supervisor = StateSupervisor::new(Arc::new(move |sid, status| {
+            let _ = store_events.events().publish(
+                "service.state_changed",
+                serde_json::json!({ "serviceID": sid, "status": status }),
+            );
+        }));
+        exec.set_state_notifier(Arc::new(move |sid, status| {
+            supervisor.notify(sid, status);
         }));
     }
     let app = Arc::new(Application::new(
