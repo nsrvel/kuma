@@ -25,7 +25,11 @@ pub fn add(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     if let Some(sid) = obj.get("serviceID").and_then(|v| v.as_str()) {
         if service_runtime_locked(exec, sid) {
@@ -61,7 +65,11 @@ pub fn update(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     if let Some(pid) = obj.get("id").and_then(|v| v.as_str()) {
         if let Ok(body) = store.get(pid) {
@@ -98,7 +106,11 @@ pub fn delete(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     if let Some(pid) = obj.get("id").and_then(|v| v.as_str()) {
         if let Ok(body) = store.get(pid) {
@@ -133,7 +145,11 @@ pub fn set_ports(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     if let Some(sid) = obj.get("serviceID").and_then(|v| v.as_str()) {
         if service_runtime_locked(exec, sid) {

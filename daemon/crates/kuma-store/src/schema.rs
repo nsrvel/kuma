@@ -89,7 +89,9 @@ pub const EXPECTED_SQLITE_MASTER: [(&str, &str, &str, Option<&str>); 14] = [
         "index",
         "idx_group_workspace",
         "service_group",
-        Some(r#"CREATE INDEX "idx_group_workspace" ON "service_group"("workspaceID", "sortOrder")"#),
+        Some(
+            r#"CREATE INDEX "idx_group_workspace" ON "service_group"("workspaceID", "sortOrder")"#,
+        ),
     ),
     (
         "table",

@@ -1,8 +1,8 @@
-use crate::sec::wire::{
-    encrypt_provider_secret, provider_for_runner, redact_provider,
-};
+use crate::sec::wire::{encrypt_provider_secret, provider_for_runner, redact_provider};
 use crate::seed::{new_uppercase_uuid, now_grdb_datetime};
-use crate::service::{effective_active_provider, provider_row_to_json, service_row, ProviderStoreHelper};
+use crate::service::{
+    effective_active_provider, provider_row_to_json, service_row, ProviderStoreHelper,
+};
 use crate::Vault;
 use kuma_domain::ServiceError;
 use rusqlite::{Connection, OptionalExtension};
@@ -75,11 +75,12 @@ impl ProviderStore {
         if let Some(exp) = params.get("expectedUpdatedAt") {
             check_service_stale(&conn, &sid, exp)?;
         }
-        let provider_obj = params.get("provider").and_then(|v| v.as_object()).ok_or_else(|| {
-            ServiceError::InvalidPort {
+        let provider_obj = params
+            .get("provider")
+            .and_then(|v| v.as_object())
+            .ok_or_else(|| ServiceError::InvalidPort {
                 message: "missing provider".into(),
-            }
-        })?;
+            })?;
         let ptype = provider_obj
             .get("type")
             .and_then(|v| v.as_str())
@@ -87,7 +88,9 @@ impl ProviderStore {
         let label = provider_obj.get("label").and_then(|v| v.as_str());
         let id = new_uppercase_uuid();
         let now = now_grdb_datetime();
-        let tx = conn.unchecked_transaction().map_err(|e| io_err(&e.to_string()))?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| io_err(&e.to_string()))?;
         tx.execute(
             "INSERT INTO provider (id, serviceID, type, label, createdAt, updatedAt, autoReconnect) VALUES (?1,?2,?3,?4,?5,?6,0)",
             rusqlite::params![id, sid, ptype, label, now, now],
@@ -108,7 +111,11 @@ impl ProviderStore {
         }))
     }
 
-    pub fn update(&self, vault: &Vault, params: &Map<String, Value>) -> Result<Value, ServiceError> {
+    pub fn update(
+        &self,
+        vault: &Vault,
+        params: &Map<String, Value>,
+    ) -> Result<Value, ServiceError> {
         let id = normalize_uuid(
             params
                 .get("id")
@@ -171,7 +178,9 @@ impl ProviderStore {
         }
         let active = effective_active_provider(&conn, &row.service_id)?;
         let was_active = active.as_deref() == Some(id.as_str());
-        let tx = conn.unchecked_transaction().map_err(|e| io_err(&e.to_string()))?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| io_err(&e.to_string()))?;
         tx.execute("DELETE FROM provider WHERE id = ?1", [&id])
             .map_err(|e| io_err(&e.to_string()))?;
         let mut new_active = active;
@@ -228,7 +237,9 @@ impl ProviderStore {
             return Err(ServiceError::ProviderNotFound { id: pid });
         }
         let ptype: String = conn
-            .query_row("SELECT type FROM provider WHERE id = ?1", [&pid], |r| r.get(0))
+            .query_row("SELECT type FROM provider WHERE id = ?1", [&pid], |r| {
+                r.get(0)
+            })
             .map_err(|e| io_err(&e.to_string()))?;
         let ports = params
             .get("ports")
@@ -253,7 +264,9 @@ impl ProviderStore {
                 });
             }
         }
-        let tx = conn.unchecked_transaction().map_err(|e| io_err(&e.to_string()))?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| io_err(&e.to_string()))?;
         tx.execute(
             "DELETE FROM portMapping WHERE serviceID = ?1 AND providerID = ?2",
             rusqlite::params![sid, pid],
@@ -360,11 +373,9 @@ fn service_exists(conn: &Connection, id: &str) -> Result<bool, ServiceError> {
 
 fn check_service_stale(conn: &Connection, id: &str, expected: &Value) -> Result<(), ServiceError> {
     let current: String = conn
-        .query_row(
-            "SELECT updatedAt FROM service WHERE id = ?1",
-            [id],
-            |r| r.get(0),
-        )
+        .query_row("SELECT updatedAt FROM service WHERE id = ?1", [id], |r| {
+            r.get(0)
+        })
         .map_err(|e| io_err(&e.to_string()))?;
     match expected {
         Value::String(s) if s == &current => Ok(()),
@@ -374,11 +385,9 @@ fn check_service_stale(conn: &Connection, id: &str, expected: &Value) -> Result<
 
 fn check_provider_stale(conn: &Connection, id: &str, expected: &Value) -> Result<(), ServiceError> {
     let current: String = conn
-        .query_row(
-            "SELECT updatedAt FROM provider WHERE id = ?1",
-            [id],
-            |r| r.get(0),
-        )
+        .query_row("SELECT updatedAt FROM provider WHERE id = ?1", [id], |r| {
+            r.get(0)
+        })
         .map_err(|e| io_err(&e.to_string()))?;
     match expected {
         Value::String(s) if s == &current => Ok(()),
@@ -471,11 +480,7 @@ fn patch_str(
     Ok(())
 }
 
-fn merge_provider_secrets(
-    conn: &Connection,
-    id: &str,
-    v: &mut Value,
-) -> Result<(), ServiceError> {
+fn merge_provider_secrets(conn: &Connection, id: &str, v: &mut Value) -> Result<(), ServiceError> {
     let (ssh, tok): (Option<String>, Option<String>) = conn
         .query_row(
             "SELECT sshPassword, ngrokAuthToken FROM provider WHERE id = ?1",

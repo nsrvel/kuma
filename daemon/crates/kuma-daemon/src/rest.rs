@@ -1,14 +1,14 @@
+use crate::rest_registry::{match_route, path_params_to_rpc, RestRoute};
+use axum::body::Body;
 use axum::extract::{Request as AxumRequest, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
-use axum::body::Body;
+use axum::response::sse::Event;
 use axum::response::{IntoResponse, Json, Response, Sse};
 use axum::Router;
 use futures_util::stream::{self, StreamExt};
 use kuma_application::{Application, DispatchContext, DispatchOutcome};
 use kuma_protocol::jsonrpc::{Request, Response as JsonRpcResponse, ERR_KUMA};
 use kuma_store::api_token_path;
-use crate::rest_registry::{match_route, path_params_to_rpc, RestRoute};
-use axum::response::sse::Event;
 use serde_json::{json, Value};
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
@@ -42,10 +42,8 @@ pub async fn serve(app: Arc<Application>, data_dir: &Path) -> anyhow::Result<()>
 
 async fn security_headers(request: AxumRequest, next: axum::middleware::Next) -> Response {
     let mut resp = next.run(request).await;
-    resp.headers_mut().insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("no-store"),
-    );
+    resp.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     resp.headers_mut().insert(
         header::HeaderName::from_static("x-content-type-options"),
         HeaderValue::from_static("nosniff"),
@@ -55,12 +53,22 @@ async fn security_headers(request: AxumRequest, next: axum::middleware::Next) ->
 
 async fn v1_fallback(State(state): State<RestState>, req: AxumRequest) -> Response {
     let method = req.method().clone();
-    let path = req.uri().path().strip_prefix("/v1").unwrap_or(req.uri().path()).to_string();
+    let path = req
+        .uri()
+        .path()
+        .strip_prefix("/v1")
+        .unwrap_or(req.uri().path())
+        .to_string();
     let headers = req.headers().clone();
     if reject_origin(&headers) {
-        return rest_error(StatusCode::FORBIDDEN, "KUMA_SEC_ORIGIN", "Origin not allowed").into_response();
+        return rest_error(
+            StatusCode::FORBIDDEN,
+            "KUMA_SEC_ORIGIN",
+            "Origin not allowed",
+        )
+        .into_response();
     }
-  if reject_reveal(&req) {
+    if reject_reveal(&req) {
         return rest_error(
             StatusCode::FORBIDDEN,
             "KUMA_SEC_REVEAL_FORBIDDEN",
@@ -70,15 +78,21 @@ async fn v1_fallback(State(state): State<RestState>, req: AxumRequest) -> Respon
     }
     let token = read_token_file(&state.token_path);
     if !authorized(&headers, &token) {
-        return rest_error(StatusCode::UNAUTHORIZED, "KUMA_SEC_UNAUTHORIZED", "Unauthorized")
-            .into_response();
+        return rest_error(
+            StatusCode::UNAUTHORIZED,
+            "KUMA_SEC_UNAUTHORIZED",
+            "Unauthorized",
+        )
+        .into_response();
     }
     if reject_host(&headers) {
-        return rest_error(StatusCode::FORBIDDEN, "KUMA_SEC_HOST", "Host not allowed").into_response();
+        return rest_error(StatusCode::FORBIDDEN, "KUMA_SEC_HOST", "Host not allowed")
+            .into_response();
     }
 
     let Some((route, caps)) = match_route(&method, &path) else {
-        return rest_error(StatusCode::NOT_FOUND, "KUMA_NOT_FOUND", "route not found").into_response();
+        return rest_error(StatusCode::NOT_FOUND, "KUMA_NOT_FOUND", "route not found")
+            .into_response();
     };
 
     if route.path == "/events/stream" && method == Method::GET {
@@ -186,15 +200,14 @@ fn dispatch_rpc(
 async fn events_sse(state: RestState, headers: &HeaderMap) -> Response {
     let token = read_token_file(&state.token_path);
     if !authorized(headers, &token) {
-        return rest_error(StatusCode::UNAUTHORIZED, "KUMA_SEC_UNAUTHORIZED", "Unauthorized")
-            .into_response();
+        return rest_error(
+            StatusCode::UNAUTHORIZED,
+            "KUMA_SEC_UNAUTHORIZED",
+            "Unauthorized",
+        )
+        .into_response();
     }
-    let outcome = dispatch_rpc(
-        &state,
-        "events.subscribe",
-        json!({ "topics": ["*"] }),
-        None,
-    );
+    let outcome = dispatch_rpc(&state, "events.subscribe", json!({ "topics": ["*"] }), None);
     let initial = match outcome {
         Ok((_, v)) => serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string()),
         Err((_, _, m)) => json!({ "error": m }).to_string(),
@@ -205,27 +218,27 @@ async fn events_sse(state: RestState, headers: &HeaderMap) -> Response {
     let live = stream::unfold((rx, epoch), move |(rx, epoch)| {
         let app = Arc::clone(&app);
         async move {
-        if app.rest_token_epoch() != epoch {
-            return None;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        loop {
             if app.rest_token_epoch() != epoch {
                 return None;
             }
-            match rx.try_recv() {
-                Ok(line) => {
-                    return Some((
-                        Ok::<_, Infallible>(Event::default().data(line)),
-                        (rx, epoch),
-                    ));
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            loop {
+                if app.rest_token_epoch() != epoch {
+                    return None;
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                match rx.try_recv() {
+                    Ok(line) => {
+                        return Some((
+                            Ok::<_, Infallible>(Event::default().data(line)),
+                            (rx, epoch),
+                        ));
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
                 }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
             }
-        }
         }
     });
     let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);
@@ -241,45 +254,51 @@ async fn logs_sse(
 ) -> Response {
     let token = read_token_file(&state.token_path);
     if !authorized(headers, &token) {
-        return rest_error(StatusCode::UNAUTHORIZED, "KUMA_SEC_UNAUTHORIZED", "Unauthorized")
-            .into_response();
+        return rest_error(
+            StatusCode::UNAUTHORIZED,
+            "KUMA_SEC_UNAUTHORIZED",
+            "Unauthorized",
+        )
+        .into_response();
     }
     let sid = caps.get("serviceId").cloned().unwrap_or_default();
     if sid.is_empty() {
-        return rest_error(StatusCode::BAD_REQUEST, "KUMA_BAD_REQUEST", "missing service id")
-            .into_response();
+        return rest_error(
+            StatusCode::BAD_REQUEST,
+            "KUMA_BAD_REQUEST",
+            "missing service id",
+        )
+        .into_response();
     }
-    let initial =
-        serde_json::to_string(&state.app.store().logs().follow_snapshot(&sid)).unwrap_or_else(
-            |_| "{}".into(),
-        );
+    let initial = serde_json::to_string(&state.app.store().logs().follow_snapshot(&sid))
+        .unwrap_or_else(|_| "{}".into());
     let epoch = state.app.rest_token_epoch();
     let app = Arc::clone(&state.app);
     let rx = state.app.store().logs().subscribe(&sid);
     let live = stream::unfold((rx, epoch), move |(rx, epoch)| {
         let app = Arc::clone(&app);
         async move {
-        if app.rest_token_epoch() != epoch {
-            return None;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        loop {
             if app.rest_token_epoch() != epoch {
                 return None;
             }
-            match rx.try_recv() {
-                Ok(line) => {
-                    return Some((
-                        Ok::<_, Infallible>(Event::default().data(line)),
-                        (rx, epoch),
-                    ));
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            loop {
+                if app.rest_token_epoch() != epoch {
+                    return None;
                 }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                match rx.try_recv() {
+                    Ok(line) => {
+                        return Some((
+                            Ok::<_, Infallible>(Event::default().data(line)),
+                            (rx, epoch),
+                        ));
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
                 }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => return None,
             }
-        }
         }
     });
     let stream = stream::once(async move { Ok(Event::default().data(initial)) }).chain(live);
@@ -292,41 +311,49 @@ async fn workspace_image_png(
     state: RestState,
     caps: std::collections::HashMap<String, String>,
 ) -> Response {
-    let wid = caps
-        .get("workspaceId")
-        .cloned()
-        .unwrap_or_default();
-  if wid.is_empty() {
-        return rest_error(StatusCode::BAD_REQUEST, "KUMA_BAD_REQUEST", "missing workspace id")
-            .into_response();
+    let wid = caps.get("workspaceId").cloned().unwrap_or_default();
+    if wid.is_empty() {
+        return rest_error(
+            StatusCode::BAD_REQUEST,
+            "KUMA_BAD_REQUEST",
+            "missing workspace id",
+        )
+        .into_response();
     }
-    let outcome = dispatch_rpc(
-        &state,
-        "workspace.get_image",
-        json!({ "id": wid }),
-        None,
-    );
+    let outcome = dispatch_rpc(&state, "workspace.get_image", json!({ "id": wid }), None);
     let (_, body) = match outcome {
         Ok(v) => v,
         Err((status, code, msg)) => return rest_error(status, code, &msg).into_response(),
     };
-    let has = body.get("hasImage").and_then(|v| v.as_bool()).unwrap_or(false);
+    let has = body
+        .get("hasImage")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if !has {
-        return rest_error(StatusCode::NOT_FOUND, "KUMA_NOT_FOUND", "no workspace image")
-            .into_response();
+        return rest_error(
+            StatusCode::NOT_FOUND,
+            "KUMA_NOT_FOUND",
+            "no workspace image",
+        )
+        .into_response();
     }
     let Some(b64) = body.get("imageBase64").and_then(|v| v.as_str()) else {
-        return rest_error(StatusCode::NOT_FOUND, "KUMA_NOT_FOUND", "no workspace image")
-            .into_response();
+        return rest_error(
+            StatusCode::NOT_FOUND,
+            "KUMA_NOT_FOUND",
+            "no workspace image",
+        )
+        .into_response();
     };
-    let bytes = match base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        b64,
-    ) {
+    let bytes = match base64::Engine::decode(&base64::engine::general_purpose::STANDARD, b64) {
         Ok(b) => b,
         Err(_) => {
-            return rest_error(StatusCode::INTERNAL_SERVER_ERROR, "KUMA_IMAGE", "decode failed")
-                .into_response();
+            return rest_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "KUMA_IMAGE",
+                "decode failed",
+            )
+            .into_response();
         }
     };
     Response::builder()
@@ -401,7 +428,10 @@ pub fn authorized(headers: &HeaderMap, token: &str) -> bool {
     let Ok(s) = v.to_str() else {
         return false;
     };
-    let Some(bearer) = s.strip_prefix("Bearer ").or_else(|| s.strip_prefix("bearer ")) else {
+    let Some(bearer) = s
+        .strip_prefix("Bearer ")
+        .or_else(|| s.strip_prefix("bearer "))
+    else {
         return false;
     };
     bearer.trim().as_bytes().ct_eq(token.as_bytes()).into()
@@ -420,7 +450,9 @@ fn reject_origin(headers: &HeaderMap) -> bool {
 }
 
 fn reject_reveal(req: &AxumRequest) -> bool {
-    req.uri().query().is_some_and(|q| q.contains("revealSecrets"))
+    req.uri()
+        .query()
+        .is_some_and(|q| q.contains("revealSecrets"))
 }
 
 fn map_rpc_http_status(code: i32, message: &str) -> StatusCode {

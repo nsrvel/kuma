@@ -64,7 +64,9 @@ impl AuditLog {
         if let Some(obj) = entry.as_object_mut() {
             obj.insert(
                 "ts".into(),
-                json!(chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()),
+                json!(chrono::Utc::now()
+                    .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+                    .to_string()),
             );
         }
         let line = serde_json::to_string(&entry).unwrap_or_else(|_| "{}".to_string());
@@ -152,10 +154,7 @@ pub fn is_mutating_method(method: &str) -> bool {
 }
 
 fn is_sensitive_read(method: &str) -> bool {
-    matches!(
-        method,
-        "data.export" | "data.export_service_json"
-    )
+    matches!(method, "data.export" | "data.export_service_json")
 }
 
 fn refs_whitelist(params: &Value) -> Value {

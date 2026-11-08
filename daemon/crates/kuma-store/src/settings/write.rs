@@ -2,11 +2,11 @@ use crate::settings::change::SettingsChangeSink;
 use crate::settings::effective::{build_setting_for_key, read_stored, read_updated_at, trim_ws};
 use crate::settings::registry::{lookup, KeyDef, KeyKind, REGISTRY};
 use crate::settings::time::{format_wire_timestamp, parse_wire_timestamp};
-use chrono::Duration;
 use crate::settings::validate::{
     strict_error_message, strict_kubeconfig_message, validate_custom_binary,
     validate_kubeconfig_path, Validation,
 };
+use chrono::Duration;
 use kuma_domain::SettingsError;
 use rusqlite::Connection;
 use serde_json::{json, Map, Value};
@@ -78,15 +78,19 @@ fn coerce_enum(key: &str, v: &Value, allowed: &[&str]) -> Result<String, Setting
 }
 
 fn parse_uuid_item(key: &str, s: &str) -> Result<String, SettingsError> {
-    Uuid::parse_str(s.trim()).map(|u| u.to_string().to_uppercase()).map_err(|_| {
-        SettingsError::InvalidValue {
+    Uuid::parse_str(s.trim())
+        .map(|u| u.to_string().to_uppercase())
+        .map_err(|_| SettingsError::InvalidValue {
             key: key.into(),
             message: "invalid UUID in array".into(),
-        }
-    })
+        })
 }
 
-fn coerce_value(key: &str, v: &Value, def: Option<&KeyDef>) -> Result<Option<Value>, SettingsError> {
+fn coerce_value(
+    key: &str,
+    v: &Value,
+    def: Option<&KeyDef>,
+) -> Result<Option<Value>, SettingsError> {
     if v.is_null() {
         return Ok(None);
     }
@@ -182,11 +186,7 @@ fn strict_check(def: &KeyDef, trimmed: &str) -> Result<(), SettingsError> {
     Ok(())
 }
 
-fn check_expected(
-    conn: &Connection,
-    key: &str,
-    expected: &Value,
-) -> Result<(), SettingsError> {
+fn check_expected(conn: &Connection, key: &str, expected: &Value) -> Result<(), SettingsError> {
     let current = read_updated_at(conn, key)?;
     match expected {
         Value::Null => {
@@ -286,10 +286,7 @@ pub fn set_values(
             if def.is_tool_path && validation_map.get(key).is_none() {
                 let path = stored.as_str().unwrap_or("");
                 let v = validation_for_path(def, path);
-                validation_map.insert(
-                    key.clone(),
-                    v.to_json(Some(path.to_string())),
-                );
+                validation_map.insert(key.clone(), v.to_json(Some(path.to_string())));
             }
         }
 

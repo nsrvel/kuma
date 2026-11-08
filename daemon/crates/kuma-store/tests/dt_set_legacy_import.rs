@@ -1,8 +1,8 @@
 //! DT-SET-29 .. 31 legacy plist import.
 
 use kuma_store::StoreHandle;
-use rusqlite::OptionalExtension;
 use plist::Value as PlistValue;
+use rusqlite::OptionalExtension;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -115,10 +115,7 @@ fn dt_set_30_legacy_import_idempotent() {
     fs::write(&plist_path, b"<?xml version=\"1.0\"?><plist version=\"1.0\"><dict><key>kuma.settings.appearance</key><string>dark</string></dict></plist>").unwrap();
     let store2 = StoreHandle::open(&data_dir).unwrap();
     assert_eq!(
-        store2
-            .settings()
-            .get("kuma.settings.appearance")
-            .unwrap()["effective"],
+        store2.settings().get("kuma.settings.appearance").unwrap()["effective"],
         "light"
     );
     std::env::remove_var("KUMA_LEGACY_DEFAULTS_PLIST");
@@ -129,7 +126,11 @@ fn dt_set_31_corrupt_plist_retries() {
     let _guard = LEGACY_ITEST.lock().unwrap();
     let dir = tempfile::tempdir().unwrap();
     let plist_path = dir.path().join("bad.plist");
-    fs::write(&plist_path, [0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30, 0xff, 0xff]).unwrap();
+    fs::write(
+        &plist_path,
+        [0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30, 0xff, 0xff],
+    )
+    .unwrap();
     std::env::set_var("KUMA_LEGACY_DEFAULTS_PLIST", plist_path.to_str().unwrap());
     let data_dir = dir.path().join("data-only-31");
     let store = StoreHandle::open(&data_dir).unwrap();

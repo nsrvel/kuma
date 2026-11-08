@@ -17,17 +17,11 @@ fn active_provider(
     let active = list
         .get("activeProviderID")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| kuma_domain::ServiceError::ProviderNotFound {
-            id: String::new(),
-        })?;
+        .ok_or_else(|| kuma_domain::ServiceError::ProviderNotFound { id: String::new() })?;
     store.provider().get_for_exec(active, store.vault())
 }
 
-pub fn status(
-    id: Option<Value>,
-    exec: &Arc<ExecEngine>,
-    params: &Value,
-) -> Response {
+pub fn status(id: Option<Value>, exec: &Arc<ExecEngine>, params: &Value) -> Response {
     let Some(sid) = params.get("id").and_then(|v| v.as_str()) else {
         return Response::err(id, ERR_KUMA, "missing id");
     };
@@ -157,7 +151,11 @@ pub fn start_all(
         .and_then(|v| v.as_array())
         .map(|a| {
             a.iter()
-                .filter(|s| !s.get("isDisabled").and_then(|v| v.as_bool()).unwrap_or(false))
+                .filter(|s| {
+                    !s.get("isDisabled")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
                 .filter_map(|s| s.get("id").and_then(|x| x.as_str()).map(str::to_string))
                 .collect()
         })

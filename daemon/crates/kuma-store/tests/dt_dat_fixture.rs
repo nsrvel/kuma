@@ -68,11 +68,11 @@ fn write_golden_fixture() {
     let now = kuma_store::now_grdb_datetime();
     let svc_id = kuma_store::new_uppercase_uuid();
     conn.execute(
-            r#"INSERT INTO service (id, workspaceID, name, isDisabled, isStarred, createdAt, updatedAt)
+        r#"INSERT INTO service (id, workspaceID, name, isDisabled, isStarred, createdAt, updatedAt)
                VALUES (?1, ?2, 'Golden Service', 0, 0, ?3, ?4)"#,
-            rusqlite::params![svc_id, ws_id, now, now],
-        )
-        .unwrap();
+        rusqlite::params![svc_id, ws_id, now, now],
+    )
+    .unwrap();
     drop(conn);
     drop(store);
 

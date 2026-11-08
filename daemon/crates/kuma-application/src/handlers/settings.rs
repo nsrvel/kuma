@@ -49,7 +49,10 @@ pub fn set(id: Option<Value>, store: &SettingsStore, params: &Value) -> Response
     let Some(values) = params.get("values").and_then(|v| v.as_object()) else {
         return Response::err(id, ERR_KUMA, "missing values object");
     };
-    let strict = params.get("strict").and_then(|v| v.as_bool()).unwrap_or(false);
+    let strict = params
+        .get("strict")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let expected = params.get("expectedUpdatedAt").and_then(|v| v.as_object());
     let map: Map<String, Value> = values.clone();
     let exp = expected.cloned();

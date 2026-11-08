@@ -83,13 +83,11 @@ fn read_key(path: &Path) -> Result<Vec<u8>, StoreError> {
     if data.len() == 32 {
         return Ok(data);
     }
-  let ms = std::time::SystemTime::now()
+    let ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let backup = path.with_file_name(format!(
-        "master.key.corrupt-{ms}"
-    ));
+    let backup = path.with_file_name(format!("master.key.corrupt-{ms}"));
     let _ = std::fs::rename(path, &backup);
     let key = random_32()?;
     write_key(path, &key)?;
@@ -107,10 +105,12 @@ fn aes_gcm_encrypt(key: &[u8], plain: &[u8]) -> Result<String, StoreError> {
         detail: e.to_string(),
     })?;
     let nonce = Nonce::from_slice(&nonce_bytes);
-    let encrypted = cipher.encrypt(nonce, plain).map_err(|e| StoreError::RowDecode {
-        table: "vault".into(),
-        column: e.to_string(),
-    })?;
+    let encrypted = cipher
+        .encrypt(nonce, plain)
+        .map_err(|e| StoreError::RowDecode {
+            table: "vault".into(),
+            column: e.to_string(),
+        })?;
     if encrypted.len() < 16 {
         return Err(StoreError::RowDecode {
             table: "vault".into(),
@@ -133,18 +133,24 @@ fn aes_gcm_decrypt(key: &[u8], stored: &str) -> Result<Vec<u8>, StoreError> {
     if parts.len() != 3 {
         return Ok(trimmed.as_bytes().to_vec());
     }
-    let nonce = STANDARD.decode(parts[0]).map_err(|e| StoreError::RowDecode {
-        table: "vault".into(),
-        column: e.to_string(),
-    })?;
-    let tag = STANDARD.decode(parts[1]).map_err(|e| StoreError::RowDecode {
-        table: "vault".into(),
-        column: e.to_string(),
-    })?;
-    let body = STANDARD.decode(parts[2]).map_err(|e| StoreError::RowDecode {
-        table: "vault".into(),
-        column: e.to_string(),
-    })?;
+    let nonce = STANDARD
+        .decode(parts[0])
+        .map_err(|e| StoreError::RowDecode {
+            table: "vault".into(),
+            column: e.to_string(),
+        })?;
+    let tag = STANDARD
+        .decode(parts[1])
+        .map_err(|e| StoreError::RowDecode {
+            table: "vault".into(),
+            column: e.to_string(),
+        })?;
+    let body = STANDARD
+        .decode(parts[2])
+        .map_err(|e| StoreError::RowDecode {
+            table: "vault".into(),
+            column: e.to_string(),
+        })?;
     if nonce.len() != 12 {
         return Err(StoreError::RowDecode {
             table: "vault".into(),

@@ -89,11 +89,11 @@ pub fn validate_custom_binary(path: &str, expected: &str) -> Validation {
             };
         }
     }
-    let name = expanded
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
-    if !name.to_ascii_lowercase().contains(&expected.to_ascii_lowercase()) {
+    let name = expanded.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if !name
+        .to_ascii_lowercase()
+        .contains(&expected.to_ascii_lowercase())
+    {
         return Validation {
             status: "nameMismatch",
             is_valid: false,

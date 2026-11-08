@@ -42,9 +42,16 @@ impl WorkspaceStore {
             .map_err(|e| db_err(&e))?;
         let mut out = Vec::new();
         for row in rows {
-            let (id, name, image, sort, created, updated) =
-                row.map_err(|e| db_err(&e))?;
-            out.push(wire_workspace(&self.data_dir, &id, &name, image, sort, &created, &updated));
+            let (id, name, image, sort, created, updated) = row.map_err(|e| db_err(&e))?;
+            out.push(wire_workspace(
+                &self.data_dir,
+                &id,
+                &name,
+                image,
+                sort,
+                &created,
+                &updated,
+            ));
         }
         Ok(out)
     }
@@ -80,8 +87,15 @@ impl WorkspaceStore {
     }
 
     pub fn update(&self, params: &Map<String, Value>) -> Result<Value, WorkspaceError> {
-        let id = normalize_id(params.get("id").and_then(|v| v.as_str()).ok_or_else(|| WorkspaceError::NotFound { id: "".into() })?)?;
-        if params.get("imageBase64").is_some() && params.get("clearImage").and_then(|v| v.as_bool()) == Some(true) {
+        let id = normalize_id(
+            params
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| WorkspaceError::NotFound { id: "".into() })?,
+        )?;
+        if params.get("imageBase64").is_some()
+            && params.get("clearImage").and_then(|v| v.as_bool()) == Some(true)
+        {
             return Err(WorkspaceError::ImageConflict);
         }
         let conn = self.conn.lock().map_err(|_| WorkspaceError::ImageIo {
@@ -192,7 +206,10 @@ impl WorkspaceStore {
         let id = normalize_id(id)?;
         let ws = self.get(&id)?;
         let image_path = ws.get("imagePath").and_then(|v| v.as_str());
-        let has = ws.get("hasImage").and_then(|v| v.as_bool()).unwrap_or(false);
+        let has = ws
+            .get("hasImage")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         if !has {
             return Ok(json!({ "hasImage": false }));
         }
@@ -222,7 +239,9 @@ impl WorkspaceStore {
         let now = now_grdb_datetime();
         if let Some(ids) = params.get("workspaceIDs").and_then(|v| v.as_array()) {
             let all: Vec<String> = conn
-                .prepare("SELECT id FROM workspace ORDER BY sortOrder ASC, createdAt ASC, rowid ASC")
+                .prepare(
+                    "SELECT id FROM workspace ORDER BY sortOrder ASC, createdAt ASC, rowid ASC",
+                )
                 .map_err(|e| db_err(&e))?
                 .query_map([], |r| r.get(0))
                 .map_err(|e| db_err(&e))?
@@ -253,16 +272,26 @@ impl WorkspaceStore {
                 .map_err(|e| db_err(&e))?;
             }
         } else {
-            let from = params.get("fromIndex").and_then(|v| v.as_i64()).unwrap_or(-1);
+            let from = params
+                .get("fromIndex")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
             let to = params.get("toIndex").and_then(|v| v.as_i64()).unwrap_or(-1);
             let mut ids: Vec<String> = conn
-                .prepare("SELECT id FROM workspace ORDER BY sortOrder ASC, createdAt ASC, rowid ASC")
+                .prepare(
+                    "SELECT id FROM workspace ORDER BY sortOrder ASC, createdAt ASC, rowid ASC",
+                )
                 .map_err(|e| db_err(&e))?
                 .query_map([], |r| r.get(0))
                 .map_err(|e| db_err(&e))?
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| db_err(&e))?;
-            if from == to || from < 0 || to < 0 || from >= ids.len() as i64 || to >= ids.len() as i64 {
+            if from == to
+                || from < 0
+                || to < 0
+                || from >= ids.len() as i64
+                || to >= ids.len() as i64
+            {
                 return self.list();
             }
             let item = ids.remove(from as usize);
@@ -283,9 +312,7 @@ impl WorkspaceStore {
 fn normalize_id(id: &str) -> Result<String, WorkspaceError> {
     Uuid::parse_str(id.trim())
         .map(|u| u.to_string().to_uppercase())
-        .map_err(|_| WorkspaceError::NotFound {
-            id: id.to_string(),
-        })
+        .map_err(|_| WorkspaceError::NotFound { id: id.to_string() })
 }
 
 fn name_from_create(name: Option<&Value>) -> String {
@@ -298,11 +325,7 @@ fn name_from_create(name: Option<&Value>) -> String {
 
 fn workspace_exists(conn: &Connection, id: &str) -> Result<bool, WorkspaceError> {
     Ok(conn
-        .query_row(
-            "SELECT 1 FROM workspace WHERE id = ?1",
-            [id],
-            |_| Ok(()),
-        )
+        .query_row("SELECT 1 FROM workspace WHERE id = ?1", [id], |_| Ok(()))
         .optional()
         .map_err(|e| db_err(&e))?
         .is_some())
@@ -317,10 +340,10 @@ fn row_to_wire(conn: &Connection, data_dir: &Path, id: &str) -> Result<Value, Wo
         )
         .optional()
         .map_err(|e| db_err(&e))?
-        .ok_or_else(|| WorkspaceError::NotFound {
-            id: id.to_string(),
-        })?;
-    Ok(wire_workspace(data_dir, id, &name, image, sort, &created, &updated))
+        .ok_or_else(|| WorkspaceError::NotFound { id: id.to_string() })?;
+    Ok(wire_workspace(
+        data_dir, id, &name, image, sort, &created, &updated,
+    ))
 }
 
 fn wire_workspace(
@@ -364,7 +387,7 @@ fn store_image(data_dir: &Path, id: &str, b64: &str) -> Result<String, Workspace
     std::fs::create_dir_all(&dir).map_err(|e| WorkspaceError::ImageIo {
         detail: format!("Failed to create workspace images directory: {e}"),
     })?;
-  let file_name = format!("{id}.png");
+    let file_name = format!("{id}.png");
     let path = dir.join(&file_name);
     std::fs::write(&path, bytes).map_err(|e| WorkspaceError::ImageIo {
         detail: format!("Failed to save workspace image: {e}"),
@@ -374,11 +397,9 @@ fn store_image(data_dir: &Path, id: &str, b64: &str) -> Result<String, Workspace
 
 fn clear_managed_image(conn: &Connection, data_dir: &Path, id: &str) -> Result<(), WorkspaceError> {
     let image: Option<String> = conn
-        .query_row(
-            "SELECT imagePath FROM workspace WHERE id = ?1",
-            [id],
-            |r| r.get::<_, Option<String>>(0),
-        )
+        .query_row("SELECT imagePath FROM workspace WHERE id = ?1", [id], |r| {
+            r.get::<_, Option<String>>(0)
+        })
         .optional()
         .map_err(|e| db_err(&e))?
         .flatten();
@@ -405,11 +426,9 @@ fn managed_image_exists(data_dir: &Path, _id: &str, image_path: &str) -> bool {
 
 fn check_stale(conn: &Connection, id: &str, expected: &Value) -> Result<(), WorkspaceError> {
     let current: String = conn
-        .query_row(
-            "SELECT updatedAt FROM workspace WHERE id = ?1",
-            [id],
-            |r| r.get(0),
-        )
+        .query_row("SELECT updatedAt FROM workspace WHERE id = ?1", [id], |r| {
+            r.get(0)
+        })
         .map_err(|e| db_err(&e))?;
     match expected {
         Value::String(s) if s == &current => Ok(()),

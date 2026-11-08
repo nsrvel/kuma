@@ -1,7 +1,7 @@
 use crate::env::path::PathResolver;
 use crate::settings::{effective_for, expand_tilde, lookup, read_stored};
-use rusqlite::Connection;
 use crate::SettingsStore;
+use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::path::Path;
 

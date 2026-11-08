@@ -107,12 +107,10 @@ impl DataPort {
 
 fn table_json(conn: &Connection, table: &str) -> Result<Vec<Value>, StoreError> {
     let sql = format!("SELECT * FROM \"{table}\"");
-    let mut stmt = conn
-        .prepare(&sql)
-        .map_err(|e| StoreError::RowDecode {
-            table: table.into(),
-            column: e.to_string(),
-        })?;
+    let mut stmt = conn.prepare(&sql).map_err(|e| StoreError::RowDecode {
+        table: table.into(),
+        column: e.to_string(),
+    })?;
     let col_count = stmt.column_count();
     let names: Vec<String> = (0..col_count)
         .map(|i| stmt.column_name(i).unwrap_or("").to_string())

@@ -81,11 +81,7 @@ pub fn effective_active_provider(
         .flatten();
     if let Some(id) = stored {
         let exists: bool = conn
-            .query_row(
-                "SELECT 1 FROM provider WHERE id = ?1",
-                [&id],
-                |_| Ok(()),
-            )
+            .query_row("SELECT 1 FROM provider WHERE id = ?1", [&id], |_| Ok(()))
             .optional()
             .map_err(|e| map_db(&e.to_string()))?
             .is_some();
@@ -174,7 +170,8 @@ pub fn list_item(
         )
         .map_err(|e| map_db(&e.to_string()))?;
     let effective = effective_active_provider(conn, service_id)?;
-    let (category, resolved, providers) = active_provider_card(conn, service_id, effective.as_deref())?;
+    let (category, resolved, providers) =
+        active_provider_card(conn, service_id, effective.as_deref())?;
     let local_ports = visible_local_ports(conn, service_id, effective.as_deref())?;
     let subtitle = {
         let d = desc.as_deref().unwrap_or("").trim();
@@ -283,7 +280,11 @@ fn membership_ids(conn: &Connection, sid: &str) -> Result<Vec<String>, ServiceEr
         .map_err(|e| map_db(&e.to_string()))
 }
 
-fn visible_ports(conn: &Connection, sid: &str, active: Option<&str>) -> Result<Vec<Value>, ServiceError> {
+fn visible_ports(
+    conn: &Connection,
+    sid: &str,
+    active: Option<&str>,
+) -> Result<Vec<Value>, ServiceError> {
     let has_provider_rows: bool = conn
         .query_row(
             "SELECT 1 FROM portMapping WHERE serviceID = ?1 AND providerID IS NOT NULL LIMIT 1",

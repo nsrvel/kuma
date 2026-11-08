@@ -67,7 +67,7 @@ pub fn uninstall() -> Result<()> {
 }
 
 fn dirs_home() -> Result<PathBuf> {
-  std::env::var("HOME")
+    std::env::var("HOME")
         .map(PathBuf::from)
         .context("HOME not set")
 }

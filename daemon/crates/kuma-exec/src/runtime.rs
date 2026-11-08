@@ -123,7 +123,9 @@ impl ExecEngine {
     }
 
     pub fn record_run(&self, service_id: &str, category: &str) {
-        let ts = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+        let ts = chrono::Utc::now()
+            .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+            .to_string();
         self.run_records.lock().unwrap().insert(
             service_id.to_string(),
             RunRecord {
@@ -171,11 +173,7 @@ impl ExecEngine {
     }
 
     pub fn run_category(&self, service_id: &str) -> Option<String> {
-        self.categories
-            .lock()
-            .unwrap()
-            .get(service_id)
-            .cloned()
+        self.categories.lock().unwrap().get(service_id).cloned()
     }
 
     pub fn set_running_category(&self, service_id: &str, category: &str) {
@@ -267,12 +265,7 @@ impl ExecEngine {
             .lock()
             .unwrap()
             .iter()
-            .filter(|(_, s)| {
-                matches!(
-                    s.status.as_str(),
-                    "running" | "starting" | "reconnecting"
-                )
-            })
+            .filter(|(_, s)| matches!(s.status.as_str(), "running" | "starting" | "reconnecting"))
             .map(|(id, _)| id.clone())
             .collect()
     }
@@ -290,10 +283,10 @@ impl ExecEngine {
     }
 
     pub fn set_stopped(&self, service_id: &str) {
-        self.states.lock().unwrap().insert(
-            service_id.to_string(),
-            RuntimeSnapshot::default(),
-        );
+        self.states
+            .lock()
+            .unwrap()
+            .insert(service_id.to_string(), RuntimeSnapshot::default());
         self.categories.lock().unwrap().remove(service_id);
         self.emit_state(service_id);
     }

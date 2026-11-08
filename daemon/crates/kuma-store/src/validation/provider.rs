@@ -19,13 +19,15 @@ pub fn reject_foreign_fields(ptype: &str, params: &Map<String, Value>) -> Result
         if matches!(key.as_str(), "id" | "type" | "label" | "expectedUpdatedAt") {
             continue;
         }
-        if ptype == "shell" && (SSH_FIELDS.contains(&key.as_str()) || KUBE_FIELDS.contains(&key.as_str()))
+        if ptype == "shell"
+            && (SSH_FIELDS.contains(&key.as_str()) || KUBE_FIELDS.contains(&key.as_str()))
         {
             return Err(ServiceError::InvalidPort {
                 message: format!("KUMA_PRV_FIELD_NOT_APPLICABLE: {key} does not apply to shell"),
             });
         }
-        if ptype == "ssh" && (SHELL_FIELDS.contains(&key.as_str()) || KUBE_FIELDS.contains(&key.as_str()))
+        if ptype == "ssh"
+            && (SHELL_FIELDS.contains(&key.as_str()) || KUBE_FIELDS.contains(&key.as_str()))
         {
             return Err(ServiceError::InvalidPort {
                 message: format!("KUMA_PRV_FIELD_NOT_APPLICABLE: {key} does not apply to ssh"),
@@ -35,7 +37,9 @@ pub fn reject_foreign_fields(ptype: &str, params: &Map<String, Value>) -> Result
             && (SSH_FIELDS.contains(&key.as_str()) || SHELL_FIELDS.contains(&key.as_str()))
         {
             return Err(ServiceError::InvalidPort {
-                message: format!("KUMA_PRV_FIELD_NOT_APPLICABLE: {key} does not apply to kubernetes"),
+                message: format!(
+                    "KUMA_PRV_FIELD_NOT_APPLICABLE: {key} does not apply to kubernetes"
+                ),
             });
         }
     }
@@ -72,7 +76,7 @@ pub fn check_source_conflict(params: &Map<String, Value>) -> Result<(), ServiceE
             message: "KUMA_PRV_SOURCE_CONFLICT: composeFilePath and yamlConfig".into(),
         });
     }
-  let script_path = params
+    let script_path = params
         .get("initialScriptPath")
         .and_then(|v| v.as_str())
         .map(str::trim)
@@ -91,7 +95,11 @@ pub fn check_source_conflict(params: &Map<String, Value>) -> Result<(), ServiceE
 }
 
 /// After patch, enforce compose/yaml and script exclusivity on stored row (INV-D-PRV-07).
-pub fn enforce_stored_exclusivity(conn: &Connection, id: &str, now: &str) -> Result<(), ServiceError> {
+pub fn enforce_stored_exclusivity(
+    conn: &Connection,
+    id: &str,
+    now: &str,
+) -> Result<(), ServiceError> {
     let row: (Option<String>, Option<String>, Option<String>, Option<String>) = conn
         .query_row(
             "SELECT composeFilePath, yamlConfig, initialScriptPath, initialScript FROM provider WHERE id = ?1",
@@ -129,8 +137,14 @@ pub fn enforce_stored_exclusivity(conn: &Connection, id: &str, now: &str) -> Res
             message: e.to_string(),
         })?;
     }
-    let sp = script_path.as_deref().map(str::trim).filter(|s| !s.is_empty());
-    let si = script_inline.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let sp = script_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let si = script_inline
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     if sp.is_some() && si.is_some() {
         conn.execute(
             "UPDATE provider SET initialScript = NULL, updatedAt = ?1 WHERE id = ?2",

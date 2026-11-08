@@ -98,9 +98,9 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         methods::ENV_VALIDATE_BINARY => json!({ "path": "/bin/echo" }),
         methods::ENV_REFRESH => json!({}),
         methods::WORKSPACE_LIST => json!({}),
-        methods::WORKSPACE_GET
-        | methods::WORKSPACE_DELETE
-        | methods::WORKSPACE_GET_IMAGE => json!({ "id": f.workspace_id }),
+        methods::WORKSPACE_GET | methods::WORKSPACE_DELETE | methods::WORKSPACE_GET_IMAGE => {
+            json!({ "id": f.workspace_id })
+        }
         methods::WORKSPACE_CREATE => json!({ "name": "ws-smoke-2" }),
         methods::WORKSPACE_UPDATE => json!({ "id": f.workspace_id, "name": "Default" }),
         methods::WORKSPACE_REORDER => json!({ "order": [f.workspace_id.clone()] }),
@@ -124,7 +124,9 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         | methods::LOGS_CLEAR
         | methods::LOGS_WORKLOAD_TAIL
         | methods::LOGS_FOLLOW
-        | methods::DATA_EXPORT_SERVICE_JSON => json!({ "id": f.service_id, "serviceID": f.service_id }),
+        | methods::DATA_EXPORT_SERVICE_JSON => {
+            json!({ "id": f.service_id, "serviceID": f.service_id })
+        }
         methods::SERVICE_CREATE => json!({ "workspaceID": f.workspace_id, "name": "another" }),
         methods::SERVICE_UPDATE => json!({ "id": f.service_id, "name": "rpc-smoke-svc" }),
         methods::SERVICE_SET_STARRED => json!({ "id": f.service_id, "starred": true }),
@@ -133,7 +135,9 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         methods::SERVICE_TOGGLE_GROUP => {
             json!({ "id": f.service_id, "groupID": f.group_id })
         }
-        methods::SERVICE_SWITCH_PROVIDER => json!({ "id": f.service_id, "providerID": f.provider_id }),
+        methods::SERVICE_SWITCH_PROVIDER => {
+            json!({ "id": f.service_id, "providerID": f.provider_id })
+        }
         methods::SERVICE_START_ALL | methods::SERVICE_STOP_ALL => json!({}),
         methods::SERVICE_STATUSES => json!({ "serviceIDs": [f.service_id.clone()] }),
         methods::PROVIDER_LIST => json!({ "serviceID": f.service_id }),
@@ -157,9 +161,13 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         | methods::KUBECONFIG_DELETE
         | methods::KUBECONFIG_CONTEXTS
         | methods::KUBECONFIG_TEST_CONNECTION => json!({ "id": f.kube_default }),
-        methods::KUBECONFIG_CREATE => json!({ "name": "smoke-k", "content": "apiVersion: v1\nkind: Config\n" }),
+        methods::KUBECONFIG_CREATE => {
+            json!({ "name": "smoke-k", "content": "apiVersion: v1\nkind: Config\n" })
+        }
         methods::KUBECONFIG_UPDATE => json!({ "id": f.kube_default, "name": "Default" }),
-        methods::K8S_NAMESPACES | methods::K8S_RESOURCES => json!({ "kubeConfigID": f.kube_default }),
+        methods::K8S_NAMESPACES | methods::K8S_RESOURCES => {
+            json!({ "kubeConfigID": f.kube_default })
+        }
         methods::K8S_RESOLVE_TARGET => {
             json!({ "kubeConfigID": f.kube_default, "targetName": "pod/redis" })
         }
@@ -179,11 +187,7 @@ fn dt_rpc_smoke_all_74_methods_wired() {
     for method in methods::ALL {
         let params = params_for(&f, method);
         let (outcome, code) = f.dispatch(method, params);
-        assert_ne!(
-            code,
-            ERR_METHOD_NOT_FOUND,
-            "method not wired: {method}"
-        );
+        assert_ne!(code, ERR_METHOD_NOT_FOUND, "method not wired: {method}");
         if *method == methods::DAEMON_SHUTDOWN {
             assert!(matches!(outcome, DispatchOutcome::ShutdownRequested(_)));
         }

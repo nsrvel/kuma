@@ -7,10 +7,7 @@ pub fn tail(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
         .get("serviceID")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let limit = params
-        .get("limit")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(100) as usize;
+    let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
     if sid.is_empty() {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing serviceID");
     }

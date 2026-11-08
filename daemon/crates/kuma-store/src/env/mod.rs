@@ -2,9 +2,9 @@ mod dependencies;
 mod path;
 mod resolve;
 
+use crate::SettingsStore;
 pub use dependencies::validate_binary;
 pub use path::{PathCache, PathResolver};
-use crate::SettingsStore;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -43,7 +43,13 @@ impl EnvService {
     }
 
     pub fn resolve(&self, command: &str, custom_path: Option<&str>, apply_settings: bool) -> Value {
-        resolve::resolve_executable(command, custom_path, apply_settings, &self.settings, &self.paths)
+        resolve::resolve_executable(
+            command,
+            custom_path,
+            apply_settings,
+            &self.settings,
+            &self.paths,
+        )
     }
 
     pub fn dependencies(&self) -> Value {

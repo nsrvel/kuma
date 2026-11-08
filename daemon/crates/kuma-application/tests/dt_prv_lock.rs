@@ -68,12 +68,11 @@ fn dt_prv_locked_while_shell_running() {
         panic!("reply");
     };
     assert!(resp.error.is_some());
-    assert!(
-        resp.error
-            .as_ref()
-            .unwrap()
-            .message
-            .contains("read-only while active")
-    );
+    assert!(resp
+        .error
+        .as_ref()
+        .unwrap()
+        .message
+        .contains("read-only while active"));
     let _ = stop_service(&exec, sid);
 }

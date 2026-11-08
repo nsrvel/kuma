@@ -99,7 +99,10 @@ mod tests {
     fn runtime_dir_override() {
         let _g = ENV_LOCK.lock().unwrap();
         std::env::set_var("KUMA_RUNTIME_DIR", "/tmp/kuma-rt-only");
-        assert_eq!(socket_path(), PathBuf::from("/tmp/kuma-rt-only/kuma-daemon.sock"));
+        assert_eq!(
+            socket_path(),
+            PathBuf::from("/tmp/kuma-rt-only/kuma-daemon.sock")
+        );
         std::env::remove_var("KUMA_RUNTIME_DIR");
     }
 }

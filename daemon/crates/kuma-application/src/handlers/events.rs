@@ -4,10 +4,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub fn subscribe(id: Option<Value>, bus: &Arc<EventBus>, params: &Value) -> Response {
-    let since = params
-        .get("sinceSeq")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    let since = params.get("sinceSeq").and_then(|v| v.as_u64()).unwrap_or(0);
     let topics: Option<Vec<String>> = params.get("topics").and_then(|v| {
         v.as_array().map(|a| {
             a.iter()
@@ -31,7 +28,11 @@ pub fn subscribe(id: Option<Value>, bus: &Arc<EventBus>, params: &Value) -> Resp
 
 pub fn unsubscribe(id: Option<Value>, bus: &Arc<EventBus>, params: &Value) -> Response {
     let Some(sub) = params.get("subscriptionId").and_then(|v| v.as_str()) else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing subscriptionId");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "missing subscriptionId",
+        );
     };
     let removed = bus.unsubscribe(sub);
     Response::ok(id, json!({ "removed": removed }))

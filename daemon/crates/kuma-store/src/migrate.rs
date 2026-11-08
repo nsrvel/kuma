@@ -125,10 +125,11 @@ fn apply_one(conn: &Connection, identifier: &str) -> Result<(), StoreError> {
     })();
     match result {
         Ok(()) => {
-            conn.execute("COMMIT", []).map_err(|e| StoreError::MigrationFailed {
-                identifier: identifier.into(),
-                detail: e.to_string(),
-            })?;
+            conn.execute("COMMIT", [])
+                .map_err(|e| StoreError::MigrationFailed {
+                    identifier: identifier.into(),
+                    detail: e.to_string(),
+                })?;
         }
         Err(e) => {
             let _ = conn.execute("ROLLBACK", []);
@@ -218,7 +219,8 @@ fn migrate_v5(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         r#"ALTER TABLE "portMapping" ADD COLUMN "providerID" TEXT REFERENCES "provider"("id") ON DELETE CASCADE;"#,
     )?;
-    let mut stmt = conn.prepare("SELECT id, serviceID FROM portMapping WHERE providerID IS NULL")?;
+    let mut stmt =
+        conn.prepare("SELECT id, serviceID FROM portMapping WHERE providerID IS NULL")?;
     let rows: Vec<(String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;

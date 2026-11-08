@@ -23,10 +23,7 @@ pub fn default_workspace_name() -> String {
         return "User's Space".to_string();
     };
     let rest: String = chars.collect();
-    format!(
-        "{}{rest}'s Space",
-        first.to_uppercase().collect::<String>()
-    )
+    format!("{}{rest}'s Space", first.to_uppercase().collect::<String>())
 }
 
 fn default_user_display_name() -> String {
@@ -38,8 +35,13 @@ fn default_user_display_name() -> String {
             let mut pwd: libc::passwd = std::mem::zeroed();
             let mut buf = [0u8; 8192];
             let mut result: *mut libc::passwd = std::ptr::null_mut();
-            if libc::getpwuid_r(uid, &mut pwd, buf.as_mut_ptr() as *mut _, buf.len(), &mut result)
-                == 0
+            if libc::getpwuid_r(
+                uid,
+                &mut pwd,
+                buf.as_mut_ptr() as *mut _,
+                buf.len(),
+                &mut result,
+            ) == 0
                 && !result.is_null()
             {
                 let gecos = CStr::from_ptr(pwd.pw_gecos).to_string_lossy();

@@ -12,7 +12,11 @@ pub fn redact_provider(mut p: Value) -> Value {
 
 fn redact_provider_obj(obj: &mut Map<String, Value>) {
     for key in ["sshPassword", "ngrokAuthToken"] {
-        if obj.get(key).and_then(|v| v.as_str()).is_some_and(|s| !s.is_empty()) {
+        if obj
+            .get(key)
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| !s.is_empty())
+        {
             obj.insert(key.to_string(), json!(REDACT));
             obj.insert(format!("{key}Set"), json!(true));
         }
@@ -22,10 +26,17 @@ fn redact_provider_obj(obj: &mut Map<String, Value>) {
 pub fn is_encrypted_at_rest(stored: &str) -> bool {
     let t = stored.trim();
     t.starts_with("kuma:v1:")
-        || (t.matches(':').count() == 2 && !t.lines().next().is_some_and(|l| l.starts_with("apiVersion:")))
+        || (t.matches(':').count() == 2
+            && !t
+                .lines()
+                .next()
+                .is_some_and(|l| l.starts_with("apiVersion:")))
 }
 
-pub fn decrypt_provider_fields(vault: &Vault, obj: &mut Map<String, Value>) -> Result<(), kuma_domain::StoreError> {
+pub fn decrypt_provider_fields(
+    vault: &Vault,
+    obj: &mut Map<String, Value>,
+) -> Result<(), kuma_domain::StoreError> {
     for key in ["sshPassword", "ngrokAuthToken"] {
         if let Some(v) = obj.get(key).and_then(|x| x.as_str()) {
             if v.is_empty() {
@@ -38,21 +49,30 @@ pub fn decrypt_provider_fields(vault: &Vault, obj: &mut Map<String, Value>) -> R
     Ok(())
 }
 
-pub fn encrypt_provider_secret(vault: &Vault, plain: &str) -> Result<String, kuma_domain::StoreError> {
+pub fn encrypt_provider_secret(
+    vault: &Vault,
+    plain: &str,
+) -> Result<String, kuma_domain::StoreError> {
     if plain.is_empty() || plain == REDACT {
         return Ok(String::new());
     }
     vault.encrypt_field(plain)
 }
 
-pub fn encrypt_kube_config_content(vault: &Vault, plain: &str) -> Result<String, kuma_domain::StoreError> {
+pub fn encrypt_kube_config_content(
+    vault: &Vault,
+    plain: &str,
+) -> Result<String, kuma_domain::StoreError> {
     if plain.is_empty() {
         return Ok(String::new());
     }
     vault.encrypt_field(plain)
 }
 
-pub fn decrypt_kube_config_content(vault: &Vault, stored: &str) -> Result<String, kuma_domain::StoreError> {
+pub fn decrypt_kube_config_content(
+    vault: &Vault,
+    stored: &str,
+) -> Result<String, kuma_domain::StoreError> {
     if stored.is_empty() {
         return Ok(String::new());
     }
@@ -62,7 +82,11 @@ pub fn decrypt_kube_config_content(vault: &Vault, stored: &str) -> Result<String
     Ok(stored.to_string())
 }
 
-pub fn provider_for_runner(vault: &Vault, mut p: Value, reveal: bool) -> Result<Value, kuma_domain::StoreError> {
+pub fn provider_for_runner(
+    vault: &Vault,
+    mut p: Value,
+    reveal: bool,
+) -> Result<Value, kuma_domain::StoreError> {
     if let Some(obj) = p.as_object_mut() {
         decrypt_provider_fields(vault, obj)?;
         if !reveal {

@@ -13,7 +13,10 @@ fn dt_sec_rotate_bumps_rest_epoch() {
         store,
         ExecEngine::new(),
         Arc::new(|| {}),
-        kuma_application::LifecycleState::new("0.1.0", "00000000-0000-4000-8000-000000000001".into()),
+        kuma_application::LifecycleState::new(
+            "0.1.0",
+            "00000000-0000-4000-8000-000000000001".into(),
+        ),
         kuma_application::DataCounts::empty(),
     );
     let before = app.rest_token_epoch();

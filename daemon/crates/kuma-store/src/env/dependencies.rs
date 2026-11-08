@@ -118,7 +118,11 @@ fn engine(
 ) -> Value {
     let resolved = resolve_executable(
         command,
-        if custom.is_empty() { None } else { Some(&custom) },
+        if custom.is_empty() {
+            None
+        } else {
+            Some(&custom)
+        },
         true,
         settings,
         path_resolver,

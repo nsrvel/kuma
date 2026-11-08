@@ -30,26 +30,26 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use daemon_state::list_user_tables;
+pub use dataport::DataPort;
+pub use env::EnvService;
+pub use events::EventBus;
+pub use group::GroupStore;
+pub use kubeconfig::KubeConfigStore;
 pub use kuma_db::{
     foreign_keys_enabled, is_sqlite_file, journal_mode, open_kuma_connection, table_count,
 };
 pub use legacy_import::run_legacy_import;
+pub use logs::LogBuffer;
 pub use migrate::{apply_through, read_applied_identifiers};
-pub use schema::{EXPECTED_SQLITE_MASTER, KNOWN_MIGRATION_IDENTIFIERS};
-pub use seed::{new_uppercase_uuid, now_grdb_datetime};
-pub use env::EnvService;
-pub use events::EventBus;
-pub use group::GroupStore;
 pub use provider::ProviderStore;
+pub use runtime_process::RuntimeProcessStore;
+pub use schema::{EXPECTED_SQLITE_MASTER, KNOWN_MIGRATION_IDENTIFIERS};
+pub use sec::{api_token_path, ensure_api_token, rotate_api_token, AuditLog, Vault};
+pub use seed::{new_uppercase_uuid, now_grdb_datetime};
 pub use service::ServiceStore;
 pub use settings::{ChangeEvent, RecordingChangeSink, SettingsStore, REGISTRY, RESET_KEYS};
-pub use workspace::WorkspaceStore;
-pub use runtime_process::RuntimeProcessStore;
-pub use dataport::DataPort;
-pub use kubeconfig::KubeConfigStore;
-pub use logs::LogBuffer;
-pub use sec::{api_token_path, ensure_api_token, rotate_api_token, AuditLog, Vault};
 pub use validation::{display_name, extract_compose_image};
+pub use workspace::WorkspaceStore;
 
 pub type SqliteMasterRow = (String, String, String, Option<String>);
 
@@ -106,11 +106,9 @@ impl StoreHandle {
         let daemon_state = DaemonStateDb::open(&daemon_path)?;
         let daemon_conn = daemon_state.connection();
         {
-            let guard = daemon_conn
-                .lock()
-                .map_err(|_| StoreError::DbOpenFailed {
-                    detail: "daemon-state lock poisoned".into(),
-                })?;
+            let guard = daemon_conn.lock().map_err(|_| StoreError::DbOpenFailed {
+                detail: "daemon-state lock poisoned".into(),
+            })?;
             run_legacy_import(&guard)?;
         }
         let instance_id = daemon_state.instance_id().to_string();

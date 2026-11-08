@@ -3,10 +3,10 @@ pub(crate) mod wire;
 use crate::seed::{new_uppercase_uuid, now_grdb_datetime};
 use kuma_domain::ServiceError;
 use rusqlite::{Connection, OptionalExtension};
-pub use wire::{effective_active_provider, provider_row_to_json, service_row, ProviderStoreHelper};
 use serde_json::{json, Map, Value};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+pub use wire::{effective_active_provider, provider_row_to_json, service_row, ProviderStoreHelper};
 
 #[derive(Clone)]
 pub struct ServiceStore {
@@ -97,11 +97,9 @@ impl ServiceStore {
             let groups = membership_ids(&conn, &sid)?;
             if starred_only {
                 let starred: bool = conn
-                    .query_row(
-                        "SELECT isStarred FROM service WHERE id = ?1",
-                        [&sid],
-                        |r| r.get(0),
-                    )
+                    .query_row("SELECT isStarred FROM service WHERE id = ?1", [&sid], |r| {
+                        r.get(0)
+                    })
                     .map_err(|e| map_db(&e.to_string()))?;
                 if !starred {
                     continue;
@@ -229,7 +227,9 @@ impl ServiceStore {
             .get("provider")
             .and_then(|v| v.get("label"))
             .and_then(|v| v.as_str());
-        let tx = conn.unchecked_transaction().map_err(|e| map_db(&e.to_string()))?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| map_db(&e.to_string()))?;
         tx.execute(
             "INSERT INTO service (id, workspaceID, name, description, isDisabled, isStarred, createdAt, updatedAt) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             rusqlite::params![sid, ws, name, desc, disabled, starred, now, now],
@@ -290,9 +290,7 @@ impl ServiceStore {
         )?;
         for key in ["id", "workspaceID", "createdAt", "activeProviderID"] {
             if params.get(key).is_some() {
-                return Err(ServiceError::FieldReadonly {
-                    field: key.into(),
-                });
+                return Err(ServiceError::FieldReadonly { field: key.into() });
             }
         }
         let conn = self.conn.lock().map_err(|_| lock_err())?;
@@ -380,21 +378,23 @@ impl ServiceStore {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         let mut create = Map::new();
-        create.insert(
-            "workspaceID".into(),
-            Value::String(ws.to_string()),
-        );
+        create.insert("workspaceID".into(), Value::String(ws.to_string()));
         create.insert(
             "name".into(),
             json!(format!(
                 "{} Copy",
-                src.get("name").and_then(|v| v.as_str()).unwrap_or("Service")
+                src.get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Service")
             )),
         );
         if let Some(d) = src.get("description") {
             create.insert("description".into(), d.clone());
         }
-        create.insert("groupIDs".into(), src.get("groupIDs").cloned().unwrap_or(json!([])));
+        create.insert(
+            "groupIDs".into(),
+            src.get("groupIDs").cloned().unwrap_or(json!([])),
+        );
         self.create(&create)
     }
 
@@ -413,11 +413,9 @@ impl ServiceStore {
             Some(b) => b,
             None => {
                 let cur: bool = conn
-                    .query_row(
-                        "SELECT isStarred FROM service WHERE id = ?1",
-                        [&id],
-                        |r| r.get(0),
-                    )
+                    .query_row("SELECT isStarred FROM service WHERE id = ?1", [&id], |r| {
+                        r.get(0)
+                    })
                     .map_err(|e| map_db(&e.to_string()))?;
                 !cur
             }
@@ -644,11 +642,7 @@ fn membership_ids(conn: &Connection, sid: &str) -> Result<Vec<String>, ServiceEr
         .map_err(|e| map_db(&e.to_string()))
 }
 
-fn ensure_group_in_workspace(
-    conn: &Connection,
-    gid: &str,
-    ws: &str,
-) -> Result<(), ServiceError> {
+fn ensure_group_in_workspace(conn: &Connection, gid: &str, ws: &str) -> Result<(), ServiceError> {
     let row: Option<String> = conn
         .query_row(
             "SELECT workspaceID FROM service_group WHERE id = ?1",
@@ -668,11 +662,9 @@ fn ensure_group_in_workspace(
 
 fn check_stale(conn: &Connection, id: &str, expected: &Value) -> Result<(), ServiceError> {
     let current: String = conn
-        .query_row(
-            "SELECT updatedAt FROM service WHERE id = ?1",
-            [id],
-            |r| r.get(0),
-        )
+        .query_row("SELECT updatedAt FROM service WHERE id = ?1", [id], |r| {
+            r.get(0)
+        })
         .map_err(|e| map_db(&e.to_string()))?;
     match expected {
         Value::String(s) if s == &current => Ok(()),

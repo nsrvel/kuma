@@ -9,10 +9,7 @@ fn trim_opt(v: &Value, key: &str) -> String {
 }
 
 pub fn display_name(provider: &Value, service_name: &str) -> String {
-    let ptype = provider
-        .get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let ptype = provider.get("type").and_then(|v| v.as_str()).unwrap_or("");
     if let Some(label) = provider.get("label").and_then(|v| v.as_str()) {
         if !label.trim().is_empty() {
             return label.to_string();

@@ -75,7 +75,9 @@ impl RuntimeProcessStore {
                 detail: e.to_string(),
             })?;
         let rows = stmt
-            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u32)))
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u32))
+            })
             .map_err(|e| StoreError::DbOpenFailed {
                 detail: e.to_string(),
             })?;

@@ -3,7 +3,10 @@ use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn backup_before_migrate(db_path: &Path, data_dir: &Path) -> Result<Option<PathBuf>, StoreError> {
+pub fn backup_before_migrate(
+    db_path: &Path,
+    data_dir: &Path,
+) -> Result<Option<PathBuf>, StoreError> {
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())

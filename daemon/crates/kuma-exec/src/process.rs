@@ -91,10 +91,7 @@ fn spawn_exit_watcher(
             if !auto_reconnect_enabled(&provider) {
                 break;
             }
-            if !matches!(
-                provider_type.as_str(),
-                "shell" | "ssh" | "kubernetes"
-            ) {
+            if !matches!(provider_type.as_str(), "shell" | "ssh" | "kubernetes") {
                 break;
             }
             if !engine.consume_reconnect_slot(&service_id) {

@@ -45,23 +45,40 @@ fn dt_dat_04_default_workspace_seed() {
     assert_eq!(store.workspace_count().unwrap(), 1);
     let kuma = store.kuma_connection();
     let conn = kuma.lock().unwrap();
-    let (id, name, image, sort, created, updated): (String, String, Option<String>, i64, String, String) =
-        conn
-            .query_row(
-                "SELECT id, name, imagePath, sortOrder, createdAt, updatedAt FROM workspace",
-                [],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
-            )
-            .unwrap();
+    let (id, name, image, sort, created, updated): (
+        String,
+        String,
+        Option<String>,
+        i64,
+        String,
+        String,
+    ) = conn
+        .query_row(
+            "SELECT id, name, imagePath, sortOrder, createdAt, updatedAt FROM workspace",
+            [],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
+        )
+        .unwrap();
     assert_eq!(id.len(), 36);
     assert_eq!(id, id.to_uppercase());
     assert!(name.ends_with("'s Space"));
     assert!(image.is_none());
     assert_eq!(sort, 0);
     for ts in [&created, &updated] {
-        assert!(ts
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == '-' || c == ' ' || c == ':' || c == '.'));
+        assert!(ts.chars().all(|c| c.is_ascii_digit()
+            || c == '-'
+            || c == ' '
+            || c == ':'
+            || c == '.'));
     }
 }
 

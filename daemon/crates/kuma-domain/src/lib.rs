@@ -212,7 +212,9 @@ impl ServiceError {
             Self::WorkspaceNotFound { id } => format!("Workspace not found: {id}"),
             Self::NameEmpty => "Service name cannot be empty".into(),
             Self::InvalidPort { message } => message.clone(),
-            Self::FieldReadonly { field } => format!("Field '{field}' is read-only on service.update"),
+            Self::FieldReadonly { field } => {
+                format!("Field '{field}' is read-only on service.update")
+            }
             Self::GroupNotFound { id } => format!("Group not found: {id}"),
             Self::GroupWorkspaceMismatch => "Group does not belong to this workspace".into(),
             Self::ProviderNotFound { id } => format!("Provider not found: {id}"),

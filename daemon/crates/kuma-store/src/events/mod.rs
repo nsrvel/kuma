@@ -93,12 +93,18 @@ impl EventBus {
         let events: Vec<Value> = buf
             .iter()
             .filter(|e| e.seq > since_seq)
-            .filter(|e| topics.map(|t| t.is_empty() || t.contains(&e.name)).unwrap_or(true))
-            .map(|e| json!({
-                "seq": e.seq,
-                "name": e.name,
-                "payload": e.payload,
-            }))
+            .filter(|e| {
+                topics
+                    .map(|t| t.is_empty() || t.contains(&e.name))
+                    .unwrap_or(true)
+            })
+            .map(|e| {
+                json!({
+                    "seq": e.seq,
+                    "name": e.name,
+                    "payload": e.payload,
+                })
+            })
             .collect();
         (events, replay_from, truncated)
     }

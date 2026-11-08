@@ -14,9 +14,9 @@ pub use lifecycle::{DataCounts, LifecycleState};
 mod tests {
     use super::*;
     use crate::context::{ClientKind, DispatchContext};
+    use kuma_exec::ExecEngine;
     use kuma_protocol::jsonrpc::{Request, ERR_METHOD_NOT_FOUND};
     use kuma_protocol::methods;
-    use kuma_exec::ExecEngine;
     use kuma_store::StoreHandle;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;

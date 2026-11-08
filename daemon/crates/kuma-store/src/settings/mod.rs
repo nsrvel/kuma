@@ -7,16 +7,16 @@ mod validate;
 mod write;
 
 pub use change::{ChangeEvent, RecordingChangeSink, SettingsChangeSink};
-pub use effective::{effective_for, read_stored};
-pub use registry::{lookup, KeyKind, KeyDef, REGISTRY, RESET_KEYS};
-pub use validate::{expand_tilde, validate_custom_binary};
-pub use time::now_wire_timestamp;
 use effective::build_setting_for_key;
+pub use effective::{effective_for, read_stored};
 use kuma_domain::SettingsError;
+pub use registry::{lookup, KeyDef, KeyKind, REGISTRY, RESET_KEYS};
 use reset::{reset_settings, ResetResult};
 use rusqlite::Connection;
 use serde_json::{Map, Value};
 use std::sync::{Arc, Mutex};
+pub use time::now_wire_timestamp;
+pub use validate::{expand_tilde, validate_custom_binary};
 use write::{list_all_settings, set_values, SetResult};
 
 #[derive(Clone)]
@@ -34,13 +34,13 @@ impl SettingsStore {
         conn: Arc<Mutex<Connection>>,
     ) -> (Self, Arc<Mutex<Vec<change::ChangeEvent>>>) {
         let (rec, events) = RecordingChangeSink::new();
-        (
-            Self::new(conn, Arc::new(rec)),
-            events,
-        )
+        (Self::new(conn, Arc::new(rec)), events)
     }
 
-    fn with_conn<R>(&self, f: impl FnOnce(&Connection) -> Result<R, SettingsError>) -> Result<R, SettingsError> {
+    fn with_conn<R>(
+        &self,
+        f: impl FnOnce(&Connection) -> Result<R, SettingsError>,
+    ) -> Result<R, SettingsError> {
         let guard = self.conn.lock().map_err(|_| SettingsError::InvalidValue {
             key: "lock".into(),
             message: "daemon-state lock poisoned".into(),
@@ -71,9 +71,7 @@ impl SettingsStore {
         if key.starts_with("client.") {
             return self.with_conn(|conn| build_setting_for_key(conn, key, None));
         }
-        let def = lookup(key).ok_or_else(|| SettingsError::UnknownKey {
-            key: key.into(),
-        })?;
+        let def = lookup(key).ok_or_else(|| SettingsError::UnknownKey { key: key.into() })?;
         self.with_conn(|conn| effective::build_setting(conn, def))
     }
 
@@ -85,13 +83,7 @@ impl SettingsStore {
     ) -> Result<SetResult, SettingsError> {
         let sink = Arc::clone(&self.sink);
         let result = self.with_conn_mut(|conn| {
-            set_values(
-                conn,
-                values,
-                strict,
-                expected_updated_at,
-                sink.as_ref(),
-            )
+            set_values(conn, values, strict, expected_updated_at, sink.as_ref())
         })?;
         if !result.changed_keys.is_empty() {
             sink.emit(&result.changed_keys, "set");

@@ -34,7 +34,11 @@ fn emit_service_created(bus: &Arc<EventBus>, service: &Value) {
 
 pub fn list(id: Option<Value>, store: &ServiceStore, params: &Value) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.list(obj) {
         Ok(body) => Response::ok(id, body),
@@ -59,7 +63,11 @@ pub fn create(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.create(obj) {
         Ok(service) => {
@@ -77,7 +85,11 @@ pub fn update(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.update(obj) {
         Ok(service) => {
@@ -121,7 +133,11 @@ pub fn duplicate(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.duplicate(obj) {
         Ok(service) => {
@@ -139,7 +155,11 @@ pub fn set_starred(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.set_starred(obj) {
         Ok(service) => {
@@ -157,7 +177,11 @@ pub fn set_disabled(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.set_disabled(obj) {
         Ok(service) => {
@@ -175,7 +199,11 @@ pub fn set_groups(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.set_groups(obj) {
         Ok(service) => {
@@ -193,7 +221,11 @@ pub fn toggle_group(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.toggle_group(obj) {
         Ok(service) => {
@@ -212,12 +244,13 @@ pub fn switch_provider(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
-    let sid = obj
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let sid = obj.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let was_running = exec.snapshot(sid).status == "running";
     if was_running {
         let _ = kuma_exec::stop_service(exec, sid);
@@ -254,15 +287,17 @@ fn active_provider_for_switch(
     let active = list
         .get("activeProviderID")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| kuma_domain::ServiceError::ProviderNotFound {
-            id: String::new(),
-        })?;
+        .ok_or_else(|| kuma_domain::ServiceError::ProviderNotFound { id: String::new() })?;
     store.provider().get_for_exec(active, store.vault())
 }
 
 pub fn preflight(id: Option<Value>, store: &ServiceStore, params: &Value) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.preflight(obj) {
         Ok(body) => Response::ok(id, body),

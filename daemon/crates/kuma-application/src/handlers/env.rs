@@ -5,7 +5,10 @@ use kuma_store::EnvService;
 use serde_json::Value;
 
 pub fn path(id: Option<Value>, env: &EnvService, params: &Value) -> Response {
-    let refresh = params.get("refresh").and_then(|v| v.as_bool()).unwrap_or(false);
+    let refresh = params
+        .get("refresh")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     Response::ok(id, env.path_json(refresh))
 }
 
@@ -27,7 +30,10 @@ pub fn resolve_executable(id: Option<Value>, env: &EnvService, params: &Value) -
 
 pub fn validate_binary(id: Option<Value>, env: &EnvService, params: &Value) -> Response {
     let path = params.get("path").and_then(|v| v.as_str()).unwrap_or("");
-    let expected = params.get("expected").and_then(|v| v.as_str()).unwrap_or("");
+    let expected = params
+        .get("expected")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     Response::ok(id, env.validate(path, expected))
 }
 

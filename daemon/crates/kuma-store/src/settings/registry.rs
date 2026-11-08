@@ -374,7 +374,9 @@ pub fn lookup(key: &str) -> Option<&'static KeyDef> {
 
 pub fn default_json(def: &KeyDef) -> Value {
     match def.key {
-        "kuma.has_completed_onboarding" | "kuma.settings.launchAtLogin" | "kuma.settings.autoResumeServices" => {
+        "kuma.has_completed_onboarding"
+        | "kuma.settings.launchAtLogin"
+        | "kuma.settings.autoResumeServices" => {
             json!(false)
         }
         "kuma.settings.activeServiceIDsBeforeQuit" => json!([]),

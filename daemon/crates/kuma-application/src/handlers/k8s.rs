@@ -32,9 +32,11 @@ pub fn namespaces(id: Option<Value>, store: &StoreHandle, params: &Value) -> Res
         .output();
     match out {
         Ok(o) if o.status.success() => {
-            let parsed: Value =
-                serde_json::from_slice(&o.stdout).unwrap_or(json!({ "items": [] }));
-            Response::ok(id, json!({ "namespaces": parsed.get("items").cloned().unwrap_or(json!([])) }))
+            let parsed: Value = serde_json::from_slice(&o.stdout).unwrap_or(json!({ "items": [] }));
+            Response::ok(
+                id,
+                json!({ "namespaces": parsed.get("items").cloned().unwrap_or(json!([])) }),
+            )
         }
         Ok(o) => Response::ok(
             id,

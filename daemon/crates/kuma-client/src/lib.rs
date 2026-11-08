@@ -7,8 +7,8 @@ use serde_json::Value;
 use std::path::Path;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::UnixStream;
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::UnixStream;
 
 #[derive(Debug, Error)]
 pub enum ClientError {
@@ -94,7 +94,8 @@ impl DaemonClient {
     }
 
     pub async fn status(&mut self) -> Result<Value> {
-        self.call(methods::DAEMON_STATUS, serde_json::json!({})).await
+        self.call(methods::DAEMON_STATUS, serde_json::json!({}))
+            .await
     }
 }
 

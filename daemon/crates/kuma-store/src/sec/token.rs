@@ -31,7 +31,9 @@ pub fn rotate_api_token(data_dir: &Path) -> Result<serde_json::Value, StoreError
     std::fs::rename(&tmp, &path).map_err(|e| StoreError::DbOpenFailed {
         detail: e.to_string(),
     })?;
-    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+    let now = chrono::Utc::now()
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string();
     Ok(serde_json::json!({
         "tokenPath": path.display().to_string(),
         "rotatedAt": now,

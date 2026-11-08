@@ -17,10 +17,7 @@ fn dt_prv_13_kubernetes_defaults_kubeconfig_id() {
     let svc = store.service().create(&params).unwrap();
     let providers = store.provider().list(svc["id"].as_str().unwrap()).unwrap();
     let p = &providers["providers"][0];
-    assert_eq!(
-        p["kubeConfigID"],
-        json!(kuma_store::kubeconfig::DEFAULT_ID)
-    );
+    assert_eq!(p["kubeConfigID"], json!(kuma_store::kubeconfig::DEFAULT_ID));
 }
 
 #[test]

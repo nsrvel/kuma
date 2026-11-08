@@ -71,7 +71,9 @@ pub fn match_route(method: &Method, path: &str) -> Option<(RestRoute, HashMap<St
     None
 }
 
-pub fn path_params_to_rpc(caps: &HashMap<String, String>) -> serde_json::Map<String, serde_json::Value> {
+pub fn path_params_to_rpc(
+    caps: &HashMap<String, String>,
+) -> serde_json::Map<String, serde_json::Value> {
     let mut m = serde_json::Map::new();
     if let (Some(sid), Some(gid)) = (caps.get("serviceId"), caps.get("groupId")) {
         m.insert("id".into(), serde_json::Value::String(sid.clone()));
@@ -99,7 +101,10 @@ pub fn path_params_to_rpc(caps: &HashMap<String, String>) -> serde_json::Map<Str
         m.insert("key".into(), serde_json::Value::String(key.clone()));
     }
     if let Some(sub) = caps.get("subscriptionId") {
-        m.insert("subscriptionID".into(), serde_json::Value::String(sub.clone()));
+        m.insert(
+            "subscriptionID".into(),
+            serde_json::Value::String(sub.clone()),
+        );
     }
     m
 }
@@ -170,18 +175,14 @@ mod tests {
     #[test]
     fn registry_has_daemon_ping() {
         let routes = load_routes();
-        assert!(routes.iter().any(|r| {
-            r.rpc_method == "daemon.ping" && r.path == "/daemon/ping"
-        }));
+        assert!(routes
+            .iter()
+            .any(|r| { r.rpc_method == "daemon.ping" && r.path == "/daemon/ping" }));
     }
 
     #[test]
     fn match_service_get() {
-        let caps = match_pattern(
-            "/services/:serviceId",
-            "/services/AAA-BBB",
-        )
-        .unwrap();
+        let caps = match_pattern("/services/:serviceId", "/services/AAA-BBB").unwrap();
         assert_eq!(caps.get("serviceId").unwrap(), "AAA-BBB");
     }
 }

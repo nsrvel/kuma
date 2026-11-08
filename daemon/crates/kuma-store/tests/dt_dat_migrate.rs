@@ -1,7 +1,9 @@
 //! DT-DAT-06 .. 08
 
 use kuma_domain::StoreError;
-use kuma_store::{apply_through, is_sqlite_file, read_applied_identifiers, open_kuma_connection, StoreHandle};
+use kuma_store::{
+    apply_through, is_sqlite_file, open_kuma_connection, read_applied_identifiers, StoreHandle,
+};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;

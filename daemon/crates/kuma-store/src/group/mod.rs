@@ -145,10 +145,18 @@ impl GroupStore {
                 .map_err(|e| db_err(&e.to_string()))?;
             }
         } else {
-            let from = params.get("fromIndex").and_then(|v| v.as_i64()).unwrap_or(-1);
+            let from = params
+                .get("fromIndex")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
             let to = params.get("toIndex").and_then(|v| v.as_i64()).unwrap_or(-1);
             let mut ids = group_ids_in_workspace(&conn, &ws)?;
-            if from == to || from < 0 || to < 0 || from >= ids.len() as i64 || to >= ids.len() as i64 {
+            if from == to
+                || from < 0
+                || to < 0
+                || from >= ids.len() as i64
+                || to >= ids.len() as i64
+            {
                 return query_groups(&self.conn, &ws);
             }
             let item = ids.remove(from as usize);

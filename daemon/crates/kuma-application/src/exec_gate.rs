@@ -9,9 +9,5 @@ pub fn service_runtime_locked(exec: &ExecEngine, service_id: &str) -> bool {
 }
 
 pub fn provider_locked_response(id: Option<serde_json::Value>) -> Response {
-    Response::err(
-        id,
-        ERR_KUMA,
-        "Settings are read-only while active.",
-    )
+    Response::err(id, ERR_KUMA, "Settings are read-only while active.")
 }

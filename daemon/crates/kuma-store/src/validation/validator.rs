@@ -11,15 +11,8 @@ fn blocking(code: impl Into<String>, message: impl Into<String>) -> Value {
     })
 }
 
-pub fn configuration_issues(
-    provider: &Value,
-    ports: &[Value],
-    ssh_auth_key: bool,
-) -> Vec<Value> {
-    let ptype = provider
-        .get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+pub fn configuration_issues(provider: &Value, ports: &[Value], ssh_auth_key: bool) -> Vec<Value> {
+    let ptype = provider.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let mut issues = port_issues(ports, ptype);
     issues.extend(match ptype {
         "kubernetes" => kubernetes_issues(provider),
@@ -51,7 +44,10 @@ fn port_issues(ports: &[Value], ptype: &str) -> Vec<Value> {
         if !ok(local) || !ok(remote) {
             issues.push(blocking(
                 format!("ports.invalid_row_{i}"),
-                format!("Port row {}: enter local and remote ports (1–65535).", i + 1),
+                format!(
+                    "Port row {}: enter local and remote ports (1–65535).",
+                    i + 1
+                ),
             ));
             continue;
         }
@@ -162,10 +158,7 @@ fn shell_issues(provider: &Value) -> Vec<Value> {
         .unwrap_or("")
         .trim();
     if cmd.is_empty() {
-        return vec![blocking(
-            "shell.command",
-            "Enter a shell command to run.",
-        )];
+        return vec![blocking("shell.command", "Enter a shell command to run.")];
     }
     Vec::new()
 }
@@ -195,10 +188,7 @@ fn ssh_issues(provider: &Value, auth_key: bool) -> Vec<Value> {
             .unwrap_or("")
             .trim();
         if key.is_empty() {
-            issues.push(blocking(
-                "ssh.key",
-                "SSH private key path is required.",
-            ));
+            issues.push(blocking("ssh.key", "SSH private key path is required."));
         }
     }
     issues

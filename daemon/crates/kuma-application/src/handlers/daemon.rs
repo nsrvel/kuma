@@ -72,10 +72,6 @@ fn rest_listen_addr() -> Value {
 pub fn rotate_api_token(id: Option<Value>, data_dir: &std::path::Path) -> Response {
     match kuma_store::rotate_api_token(data_dir) {
         Ok(v) => Response::ok(id, v),
-        Err(e) => Response::err(
-            id,
-            kuma_protocol::jsonrpc::ERR_KUMA,
-            e.to_string(),
-        ),
+        Err(e) => Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, e.to_string()),
     }
 }

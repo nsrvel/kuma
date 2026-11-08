@@ -28,7 +28,11 @@ pub fn create(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.create(obj) {
         Ok(ws) => {
@@ -51,7 +55,11 @@ pub fn update(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.update(obj) {
         Ok(ws) => {
@@ -117,7 +125,11 @@ pub fn reorder(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.reorder(obj) {
         Ok(workspaces) => {
@@ -135,7 +147,11 @@ pub fn set_image(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.set_image(obj) {
         Ok(ws) => {
@@ -158,7 +174,11 @@ pub fn clear_image(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.clear_image(obj) {
         Ok(ws) => {

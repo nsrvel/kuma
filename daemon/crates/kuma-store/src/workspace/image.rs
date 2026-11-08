@@ -19,7 +19,12 @@ pub fn encode_avatar_png(bytes: &[u8]) -> Result<Vec<u8>, WorkspaceError> {
     let rgba = resized.to_rgba8();
     let mut out = Vec::new();
     PngEncoder::new(&mut out)
-        .write_image(rgba.as_raw(), rgba.width(), rgba.height(), ColorType::Rgba8.into())
+        .write_image(
+            rgba.as_raw(),
+            rgba.width(),
+            rgba.height(),
+            ColorType::Rgba8.into(),
+        )
         .map_err(|_| WorkspaceError::ImageInvalid)?;
     Ok(out)
 }

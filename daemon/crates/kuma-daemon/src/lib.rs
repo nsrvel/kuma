@@ -26,17 +26,15 @@ pub async fn run() -> Result<()> {
     instance::prepare_stale_socket().context("prepare socket path")?;
 
     let store = Arc::new(
-        StoreHandle::open(&paths::data_dir()).map_err(|e| anyhow::anyhow!("{}: {}", e.code(), e))?,
+        StoreHandle::open(&paths::data_dir())
+            .map_err(|e| anyhow::anyhow!("{}: {}", e.code(), e))?,
     );
     let counts = DataCounts {
         workspace_count: store.workspace_count().map_err(store_err)?,
         service_count: store.service_count().map_err(store_err)?,
         schema_migrations: store.schema_migrations().to_vec(),
     };
-    let lifecycle = LifecycleState::new(
-        env!("CARGO_PKG_VERSION"),
-        store.instance_id().to_string(),
-    );
+    let lifecycle = LifecycleState::new(env!("CARGO_PKG_VERSION"), store.instance_id().to_string());
 
     let socket = paths::socket_path();
     let listener = UnixListener::bind(&socket).context("bind unix socket")?;
@@ -262,7 +260,10 @@ mod tests {
 
         let mut client = connect_when_ready(&dir).await;
         let result = client
-            .call(kuma_protocol::methods::WORKSPACE_LIST, serde_json::json!({}))
+            .call(
+                kuma_protocol::methods::WORKSPACE_LIST,
+                serde_json::json!({}),
+            )
             .await
             .unwrap();
         assert_eq!(result["workspaces"].as_array().unwrap().len(), 1);

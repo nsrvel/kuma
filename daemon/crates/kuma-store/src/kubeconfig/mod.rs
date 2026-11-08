@@ -97,7 +97,8 @@ impl KubeConfigStore {
         };
         let mut item = wire_summary(&id, &name, false, &created, &updated, source);
         if reveal_content {
-            let plain = decrypt_kube_config_content(&self.vault, &content).map_err(map_vault_err)?;
+            let plain =
+                decrypt_kube_config_content(&self.vault, &content).map_err(map_vault_err)?;
             item["configContent"] = json!(plain);
         } else {
             item["hasConfigContent"] = json!(!content.trim().is_empty());

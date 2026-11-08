@@ -6,7 +6,11 @@ use std::sync::{Arc, Mutex};
 
 static SET_ITEST: Mutex<()> = Mutex::new(());
 
-fn open_settings() -> (tempfile::TempDir, SettingsStore, Arc<Mutex<Vec<kuma_store::ChangeEvent>>>) {
+fn open_settings() -> (
+    tempfile::TempDir,
+    SettingsStore,
+    Arc<Mutex<Vec<kuma_store::ChangeEvent>>>,
+) {
     let _guard = SET_ITEST.lock().unwrap();
     let dir = tempfile::tempdir().unwrap();
     let missing = dir.path().join("no-legacy.plist");
@@ -33,10 +37,7 @@ fn dt_set_01_list_twenty_six_defaults() {
 fn dt_set_02_set_auto_resume_and_change_event() {
     let (_dir, settings, events) = open_settings();
     let mut values = Map::new();
-    values.insert(
-        "kuma.settings.autoResumeServices".into(),
-        json!(true),
-    );
+    values.insert("kuma.settings.autoResumeServices".into(), json!(true));
     settings.set(&values, false, None).unwrap();
     let got = settings.get("kuma.settings.autoResumeServices").unwrap();
     assert_eq!(got["effective"], true);
@@ -45,7 +46,9 @@ fn dt_set_02_set_auto_resume_and_change_event() {
     let log = events.lock().unwrap();
     assert_eq!(log.len(), 1);
     assert_eq!(log[0].reason, "set");
-    assert!(log[0].keys.contains(&"kuma.settings.autoResumeServices".to_string()));
+    assert!(log[0]
+        .keys
+        .contains(&"kuma.settings.autoResumeServices".to_string()));
 }
 
 #[test]
@@ -101,7 +104,10 @@ fn dt_set_06_null_deletes_and_legacy() {
     );
     settings.set(&leg, false, None).unwrap();
     let mut primary = Map::new();
-    primary.insert("kuma.settings.customKubectlPath".into(), json!("/usr/local/bin/kubectl"));
+    primary.insert(
+        "kuma.settings.customKubectlPath".into(),
+        json!("/usr/local/bin/kubectl"),
+    );
     settings.set(&primary, false, None).unwrap();
     let mut del = Map::new();
     del.insert("kuma.settings.customKubectlPath".into(), json!(null));
@@ -140,10 +146,7 @@ fn dt_set_09_reset_twenty_two_keys() {
         values.insert(key.into(), val);
     }
     values.insert("kuma.settings.quitBehavior".into(), json!("stopAll"));
-    values.insert(
-        "kuma.has_completed_onboarding".into(),
-        json!(true),
-    );
+    values.insert("kuma.has_completed_onboarding".into(), json!(true));
     values.insert("client.view".into(), json!(1));
     settings.set(&values, false, None).unwrap();
     let result = settings.reset().unwrap();
@@ -151,7 +154,10 @@ fn dt_set_09_reset_twenty_two_keys() {
     assert_eq!(events.lock().unwrap().last().unwrap().reason, "reset");
     let onboarding = settings.get("kuma.has_completed_onboarding").unwrap();
     assert_eq!(onboarding["effective"], true);
-    assert_eq!(settings.get("kuma.settings.quitBehavior").unwrap()["effective"], "stopAll");
+    assert_eq!(
+        settings.get("kuma.settings.quitBehavior").unwrap()["effective"],
+        "stopAll"
+    );
 }
 
 #[test]
@@ -202,10 +208,7 @@ fn dt_set_32_onboarding_survives_reset() {
 fn dt_set_35_noop_skips_event() {
     let (_dir, settings, events) = open_settings();
     let mut values = Map::new();
-    values.insert(
-        "kuma.settings.autoResumeServices".into(),
-        json!(true),
-    );
+    values.insert("kuma.settings.autoResumeServices".into(), json!(true));
     settings.set(&values, false, None).unwrap();
     settings.set(&values, false, None).unwrap();
     assert_eq!(events.lock().unwrap().len(), 1);
@@ -223,21 +226,20 @@ fn dt_set_08_notify_on_crash_legacy_merge() {
     assert_eq!(got["effective"], false);
     assert_eq!(got["source"], "legacy");
     let mut on = Map::new();
-    on.insert(
-        "kuma.settings.notifyOnServiceFailure".into(),
-        json!(true),
-    );
+    on.insert("kuma.settings.notifyOnServiceFailure".into(), json!(true));
     settings.set(&on, false, None).unwrap();
     let got = settings
         .get("kuma.settings.notifyOnServiceFailure")
         .unwrap();
     assert_eq!(got["effective"], true);
     assert_eq!(got["source"], "stored");
-    assert!(settings.get("kuma.settings.notifyOnCrash").is_err()
-        || settings
-            .get("kuma.settings.notifyOnCrash")
-            .map(|v| v["stored"].is_null())
-            .unwrap_or(true));
+    assert!(
+        settings.get("kuma.settings.notifyOnCrash").is_err()
+            || settings
+                .get("kuma.settings.notifyOnCrash")
+                .map(|v| v["stored"].is_null())
+                .unwrap_or(true)
+    );
 }
 
 #[test]
@@ -265,10 +267,7 @@ fn dt_set_16_expected_updated_at_stale() {
     assert!(settings.set(&bad, false, Some(&exp_wrong)).is_err());
     let mut exp_ok = Map::new();
     let current = settings.get(KEY).unwrap();
-    exp_ok.insert(
-        KEY.into(),
-        json!(current["updatedAt"].as_str().unwrap()),
-    );
+    exp_ok.insert(KEY.into(), json!(current["updatedAt"].as_str().unwrap()));
     values.insert(KEY.into(), json!("v4"));
     settings.set(&values, false, Some(&exp_ok)).unwrap();
 }

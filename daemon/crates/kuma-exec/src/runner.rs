@@ -86,19 +86,14 @@ fn start_shell(
     is_reconnect: bool,
 ) -> Result<(), ExecError> {
     let Some(cmd) = trimmed_cmd(provider, "runCommand") else {
-        return Err(ExecError::Message("shell provider missing runCommand".into()));
+        return Err(ExecError::Message(
+            "shell provider missing runCommand".into(),
+        ));
     };
     let mut command = Command::new("sh");
     command.arg("-lc").arg(cmd);
     apply_working_dir(&mut command, provider);
-    spawn_managed(
-        engine,
-        service_id,
-        "shell",
-        provider,
-        command,
-        is_reconnect,
-    )
+    spawn_managed(engine, service_id, "shell", provider, command, is_reconnect)
 }
 
 fn start_kubernetes(
@@ -265,9 +260,8 @@ fn start_tunnel(
         .filter(|s| !s.is_empty())
         .ok_or_else(|| ExecError::Message("tunnel missing tunnelTargetUrl".into()))?;
     let command = if tunnel_type == "ngrok" {
-        let mut c = Command::new(
-            std::env::var("KUMA_NGROK_BIN").unwrap_or_else(|_| "ngrok".into()),
-        );
+        let mut c =
+            Command::new(std::env::var("KUMA_NGROK_BIN").unwrap_or_else(|_| "ngrok".into()));
         c.arg("http").arg(target);
         if let Some(tok) = provider.get("ngrokAuthToken").and_then(|v| v.as_str()) {
             if !tok.is_empty() && !tok.contains("***") {
@@ -282,7 +276,14 @@ fn start_tunnel(
         c.arg("tunnel").arg("--url").arg(target);
         c
     };
-    spawn_managed(engine, service_id, "tunnel", provider, command, is_reconnect)
+    spawn_managed(
+        engine,
+        service_id,
+        "tunnel",
+        provider,
+        command,
+        is_reconnect,
+    )
 }
 
 fn start_health(
@@ -301,12 +302,18 @@ fn start_health(
         .and_then(|v| v.as_i64())
         .unwrap_or(30)
         .max(1);
-    let script = format!(
-        "while true; do curl -sf {url:?} >/dev/null || exit 1; sleep {interval}; done"
-    );
+    let script =
+        format!("while true; do curl -sf {url:?} >/dev/null || exit 1; sleep {interval}; done");
     let mut command = Command::new("sh");
     command.arg("-lc").arg(script);
-    spawn_managed(engine, service_id, "httpCheck", provider, command, is_reconnect)
+    spawn_managed(
+        engine,
+        service_id,
+        "httpCheck",
+        provider,
+        command,
+        is_reconnect,
+    )
 }
 
 fn start_monitor(

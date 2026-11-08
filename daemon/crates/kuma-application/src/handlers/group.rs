@@ -21,7 +21,11 @@ pub fn create(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.create(obj) {
         Ok(group) => {
@@ -48,7 +52,11 @@ pub fn update(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
     match store.update(obj) {
         Ok(group) => {
@@ -94,9 +102,16 @@ pub fn reorder(
     params: &Value,
 ) -> Response {
     let Some(obj) = params.as_object() else {
-        return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "expected object params");
+        return Response::err(
+            id,
+            kuma_protocol::jsonrpc::ERR_KUMA,
+            "expected object params",
+        );
     };
-    let ws = obj.get("workspaceID").and_then(|v| v.as_str()).map(str::to_string);
+    let ws = obj
+        .get("workspaceID")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
     match store.reorder(obj) {
         Ok(groups) => {
             let _ = bus.publish(

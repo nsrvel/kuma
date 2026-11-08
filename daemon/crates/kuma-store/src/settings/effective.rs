@@ -9,7 +9,9 @@ pub fn trim_ws(s: &str) -> String {
 
 pub fn read_stored(conn: &Connection, key: &str) -> Result<Option<Value>, SettingsError> {
     let raw: Option<String> = conn
-        .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| r.get(0))
+        .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+            r.get(0)
+        })
         .optional()
         .map_err(|e| SettingsError::InvalidValue {
             key: key.into(),
@@ -25,12 +27,16 @@ pub fn read_stored(conn: &Connection, key: &str) -> Result<Option<Value>, Settin
 }
 
 pub fn read_updated_at(conn: &Connection, key: &str) -> Result<Option<String>, SettingsError> {
-    conn.query_row("SELECT updatedAt FROM settings WHERE key = ?1", [key], |r| r.get(0))
-        .optional()
-        .map_err(|e| SettingsError::InvalidValue {
-            key: key.into(),
-            message: e.to_string(),
-        })
+    conn.query_row(
+        "SELECT updatedAt FROM settings WHERE key = ?1",
+        [key],
+        |r| r.get(0),
+    )
+    .optional()
+    .map_err(|e| SettingsError::InvalidValue {
+        key: key.into(),
+        message: e.to_string(),
+    })
 }
 
 fn string_effective(
@@ -80,11 +86,14 @@ fn bool_effective(
     Ok((json!(default), "default"))
 }
 
-pub fn effective_for(conn: &Connection, def: &KeyDef) -> Result<(Value, &'static str), SettingsError> {
+pub fn effective_for(
+    conn: &Connection,
+    def: &KeyDef,
+) -> Result<(Value, &'static str), SettingsError> {
     match def.key {
-        "kuma.has_completed_onboarding" | "kuma.settings.launchAtLogin" | "kuma.settings.autoResumeServices" => {
-            bool_effective(conn, def.key, false, None)
-        }
+        "kuma.has_completed_onboarding"
+        | "kuma.settings.launchAtLogin"
+        | "kuma.settings.autoResumeServices" => bool_effective(conn, def.key, false, None),
         "kuma.settings.confirmBeforeQuit" => bool_effective(conn, def.key, true, None),
         "kuma.settings.notifyOnServiceFailure" => {
             bool_effective(conn, def.key, true, Some("kuma.settings.notifyOnCrash"))
@@ -177,9 +186,9 @@ pub fn build_setting_for_key(
             "updatedAt": updated,
         }));
     }
-    let def = def.or_else(|| lookup(key)).ok_or_else(|| SettingsError::UnknownKey {
-        key: key.into(),
-    })?;
+    let def = def
+        .or_else(|| lookup(key))
+        .ok_or_else(|| SettingsError::UnknownKey { key: key.into() })?;
     let stored = read_stored(conn, def.key)?;
     let (effective, source) = effective_for(conn, def)?;
     let updated = read_updated_at(conn, def.key)?;

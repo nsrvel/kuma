@@ -119,7 +119,10 @@ async fn main() -> Result<()> {
             WorkspaceCommands::List => {
                 let mut client = kuma_client::DaemonClient::connect_default().await?;
                 let v = client
-                    .call(kuma_protocol::methods::WORKSPACE_LIST, serde_json::json!({}))
+                    .call(
+                        kuma_protocol::methods::WORKSPACE_LIST,
+                        serde_json::json!({}),
+                    )
                     .await?;
                 println!("{}", serde_json::to_string_pretty(&v)?);
             }
@@ -138,7 +141,10 @@ async fn main() -> Result<()> {
             KubeconfigCommands::List => {
                 let mut client = kuma_client::DaemonClient::connect_default().await?;
                 let v = client
-                    .call(kuma_protocol::methods::KUBECONFIG_LIST, serde_json::json!({}))
+                    .call(
+                        kuma_protocol::methods::KUBECONFIG_LIST,
+                        serde_json::json!({}),
+                    )
                     .await?;
                 println!("{}", serde_json::to_string_pretty(&v)?);
             }

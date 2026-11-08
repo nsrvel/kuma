@@ -1,6 +1,6 @@
 //! ADD-09 legacy UserDefaults plist import ([03 §3.8](docs/specs/daemon/03-settings-and-environment.md)).
 
-use crate::settings::{KeyKind, REGISTRY, now_wire_timestamp};
+use crate::settings::{now_wire_timestamp, KeyKind, REGISTRY};
 use kuma_domain::StoreError;
 use plist::Value as PlistValue;
 use rusqlite::{Connection, OptionalExtension};
@@ -120,19 +120,17 @@ fn locate_plist() -> Option<PathBuf> {
 #[cfg(target_os = "macos")]
 fn real_home() -> Option<PathBuf> {
     unsafe {
-        libc::getpwuid(libc::getuid())
-            .as_ref()
-            .and_then(|pw| {
-                if pw.pw_dir.is_null() {
-                    None
-                } else {
-                    Some(PathBuf::from(
-                        std::ffi::CStr::from_ptr(pw.pw_dir)
-                            .to_string_lossy()
-                            .into_owned(),
-                    ))
-                }
-            })
+        libc::getpwuid(libc::getuid()).as_ref().and_then(|pw| {
+            if pw.pw_dir.is_null() {
+                None
+            } else {
+                Some(PathBuf::from(
+                    std::ffi::CStr::from_ptr(pw.pw_dir)
+                        .to_string_lossy()
+                        .into_owned(),
+                ))
+            }
+        })
     }
 }
 
@@ -150,10 +148,7 @@ fn read_plist_dict(path: &Path) -> Result<Option<HashMap<String, PlistValue>>, S
     }
 }
 
-fn plist_to_json(
-    def: &crate::settings::KeyDef,
-    v: &PlistValue,
-) -> Option<serde_json::Value> {
+fn plist_to_json(def: &crate::settings::KeyDef, v: &PlistValue) -> Option<serde_json::Value> {
     use serde_json::json;
     use uuid::Uuid;
     match def.kind {

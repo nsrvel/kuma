@@ -24,7 +24,7 @@ pub struct PathCache {
 }
 
 pub struct PathResolver {
-  inner: Mutex<Option<PathCache>>,
+    inner: Mutex<Option<PathCache>>,
 }
 
 impl PathResolver {
@@ -104,13 +104,7 @@ fn discover_tool_dirs() -> Vec<String> {
         let mut names: Vec<_> = rd.filter_map(|e| e.ok()).collect();
         names.sort_by_key(|e| e.file_name());
         for entry in names {
-            out.push(
-                entry
-                    .path()
-                    .join("bin")
-                    .to_string_lossy()
-                    .into_owned(),
-            );
+            out.push(entry.path().join("bin").to_string_lossy().into_owned());
         }
     }
     for extra in [
@@ -129,7 +123,12 @@ fn discover_tool_dirs() -> Vec<String> {
 fn expand_fallbacks() -> Vec<String> {
     let h = home();
     let mut list: Vec<String> = FALLBACK.iter().map(|s| (*s).to_string()).collect();
-    for rel in [".rd/bin", ".nvm/versions/node/current/bin", ".cargo/bin", ".local/bin"] {
+    for rel in [
+        ".rd/bin",
+        ".nvm/versions/node/current/bin",
+        ".cargo/bin",
+        ".local/bin",
+    ] {
         list.push(h.join(rel).to_string_lossy().into_owned());
     }
     list
@@ -148,7 +147,11 @@ fn compute_path() -> PathCache {
     let mut dirs = Vec::new();
     let mut directory_meta = Vec::new();
 
-    let push = |label: &'static str, d: String, dirs: &mut Vec<String>, meta: &mut Vec<serde_json::Value>, seen: &mut std::collections::HashSet<String>| {
+    let push = |label: &'static str,
+                d: String,
+                dirs: &mut Vec<String>,
+                meta: &mut Vec<serde_json::Value>,
+                seen: &mut std::collections::HashSet<String>| {
         let t = d.trim().to_string();
         if t.is_empty() || seen.contains(&t) {
             return;
@@ -160,7 +163,13 @@ fn compute_path() -> PathCache {
 
     if let Some(ref sniff) = sniffed {
         for part in sniff.split(':').filter(|p| !p.is_empty()) {
-            push("sniff", part.to_string(), &mut dirs, &mut directory_meta, &mut seen);
+            push(
+                "sniff",
+                part.to_string(),
+                &mut dirs,
+                &mut directory_meta,
+                &mut seen,
+            );
         }
     }
     if !skip_sniff {

@@ -8,7 +8,7 @@ use std::io::{self, BufRead, Write};
 pub async fn run_stdio_mcp() -> Result<()> {
     let mut client = DaemonClient::connect_mcp(kuma_protocol::paths::socket_path()).await?;
     let stdin = io::stdin();
-  for line in stdin.lock().lines() {
+    for line in stdin.lock().lines() {
         let line = line?;
         if line.trim().is_empty() {
             continue;
@@ -39,7 +39,10 @@ pub async fn run_stdio_mcp() -> Result<()> {
             }),
             "tools/call" => {
                 let params = msg.get("params").and_then(|v| v.as_object());
-                let tool = params.and_then(|p| p.get("name")).and_then(|v| v.as_str()).unwrap_or("");
+                let tool = params
+                    .and_then(|p| p.get("name"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 let args = params
                     .and_then(|p| p.get("arguments"))
                     .cloned()
