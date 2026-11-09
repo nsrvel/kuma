@@ -69,7 +69,6 @@ fn dt_exe_more_provider_run_commands() {
 }
 
 #[test]
-#[test]
 fn dt_exe_docker_run_command_avoids_compose_up() {
     let eng = Arc::new(ExecEngine::new());
     let sid = "00000000-0000-4000-8000-0000000000ad";
