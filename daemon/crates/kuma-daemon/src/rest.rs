@@ -510,7 +510,7 @@ mod tests {
             HeaderValue::from_static("Bearer secret"),
         );
         assert!(authorized(&headers, "secret"));
-        assert!(reject_host(&HeaderMap::new()) == false);
+        assert!(!reject_host(&HeaderMap::new()));
         headers.insert(header::HOST, HeaderValue::from_static("evil.test"));
         assert!(reject_host(&headers));
         let mut params = json!({});
