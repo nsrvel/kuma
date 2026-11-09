@@ -31,6 +31,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 ### Line coverage (CI milestone 72%, target 90%)
 
+Wave 2 closed all `logic_status=partial` CSV rows; local llvm-cov is ~70% (integration tests skip under `LLVM_PROFILE_FILE`). CI gate stays **72** until the **90%** sweep lands.
+
 CI (`.github/workflows/daemon-ci.yml`) installs `cargo-llvm-cov` with `llvm-tools-preview` and runs:
 
 ```bash

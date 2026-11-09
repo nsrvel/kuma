@@ -477,6 +477,7 @@ fn map_rpc_http_status(code: i32, message: &str) -> StatusCode {
 mod tests {
     use super::*;
     use axum::http::Request;
+    use http_body_util::BodyExt;
     use kuma_application::{Application, DataCounts, LifecycleState};
     use kuma_exec::ExecEngine;
     use kuma_store::{ensure_api_token, StoreHandle};
@@ -711,5 +712,33 @@ mod tests {
             .unwrap();
         let resp = router.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn rest_events_sse_initial_chunk() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/v1/events/stream")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap();
+        let resp = tokio::time::timeout(std::time::Duration::from_secs(3), router.oneshot(req))
+            .await
+            .expect("sse timeout")
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let mut body = resp.into_body();
+        let frame = tokio::time::timeout(std::time::Duration::from_secs(2), body.frame())
+            .await
+            .expect("first frame timeout")
+            .expect("frame");
+        assert!(frame.is_ok());
     }
 }

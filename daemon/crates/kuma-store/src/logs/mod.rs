@@ -4,14 +4,18 @@ use std::collections::{HashMap, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Mutex;
 
 const MAX_LINES: usize = 500;
 
+static NEXT_FOLLOW_SUB: AtomicU64 = AtomicU64::new(1);
+
 pub struct LogBuffer {
     inner: Mutex<HashMap<String, VecDeque<String>>>,
     subscribers: Mutex<HashMap<String, Vec<Sender<String>>>>,
+    follow_registry: Mutex<HashMap<String, String>>,
     spool_dir: PathBuf,
 }
 
@@ -22,6 +26,7 @@ impl LogBuffer {
         Self {
             inner: Mutex::new(HashMap::new()),
             subscribers: Mutex::new(HashMap::new()),
+            follow_registry: Mutex::new(HashMap::new()),
             spool_dir,
         }
     }
@@ -86,13 +91,39 @@ impl LogBuffer {
     }
 
     pub fn follow_snapshot(&self, service_id: &str) -> Value {
+        self.start_follow(service_id)
+    }
+
+    pub fn start_follow(&self, service_id: &str) -> Value {
+        let sub_id = NEXT_FOLLOW_SUB.fetch_add(1, Ordering::Relaxed).to_string();
+        self.follow_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(sub_id.clone(), service_id.to_string());
         let lines = self.read_spool_tail(service_id, 50);
         json!({
             "following": true,
             "serviceID": service_id,
+            "subscriptionId": sub_id,
             "lines": lines,
             "stream": true,
         })
+    }
+
+    pub fn follow_service_for_sub(&self, subscription_id: &str) -> Option<String> {
+        self.follow_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(subscription_id)
+            .cloned()
+    }
+
+    pub fn end_follow(&self, subscription_id: &str) -> bool {
+        self.follow_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(subscription_id)
+            .is_some()
     }
 
     fn spool_path(&self, service_id: &str) -> PathBuf {

@@ -13,10 +13,7 @@ fn dt_prv_delete_and_active_promotion() {
     let svc = store.service().create(&create).unwrap();
     let sid = svc["id"].as_str().unwrap();
     let plist0 = store.provider().list(sid).unwrap();
-    let p0 = plist0["providers"][0]["id"]
-        .as_str()
-        .unwrap()
-        .to_string();
+    let p0 = plist0["providers"][0]["id"].as_str().unwrap().to_string();
     let mut add = Map::new();
     add.insert("serviceID".into(), json!(sid));
     add.insert(

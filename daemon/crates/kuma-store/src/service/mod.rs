@@ -288,7 +288,7 @@ impl ServiceStore {
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| ServiceError::NotFound { id: "".into() })?,
         )?;
-        for key in ["id", "workspaceID", "createdAt", "activeProviderID"] {
+        for key in ["workspaceID", "createdAt", "activeProviderID"] {
             if params.get(key).is_some() {
                 return Err(ServiceError::FieldReadonly { field: key.into() });
             }

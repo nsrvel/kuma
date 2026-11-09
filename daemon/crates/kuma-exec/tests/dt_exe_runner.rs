@@ -45,6 +45,31 @@ fn dt_exe_required_fields_matrix() {
 }
 
 #[test]
+fn dt_exe_more_provider_run_commands() {
+    let eng = Arc::new(ExecEngine::new());
+    let sid = "00000000-0000-4000-8000-0000000000af";
+    for (ptype, provider) in [
+        (
+            "tunnel",
+            json!({"type": "tunnel", "runCommand": "sleep 20", "tunnelTargetUrl": "http://127.0.0.1"}),
+        ),
+        (
+            "httpCheck",
+            json!({"type": "httpCheck", "runCommand": "sleep 20", "httpCheckUrl": "http://127.0.0.1"}),
+        ),
+        (
+            "processMonitor",
+            json!({"type": "processMonitor", "runCommand": "sleep 20", "monitorProcessName": "sleep"}),
+        ),
+    ] {
+        start_service(&eng, sid, &provider).unwrap();
+        stop_service(&eng, sid).unwrap();
+        let _ = ptype;
+    }
+}
+
+#[test]
+#[test]
 fn dt_exe_docker_run_command_avoids_compose_up() {
     let eng = Arc::new(ExecEngine::new());
     let sid = "00000000-0000-4000-8000-0000000000ad";

@@ -770,6 +770,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "futures-util",
+ "http-body-util",
  "kuma-application",
  "kuma-client",
  "kuma-exec",

@@ -2,6 +2,10 @@ use kuma_protocol::jsonrpc::Response;
 use kuma_store::{KubeConfigStore, StoreHandle};
 use serde_json::{json, Value};
 
+fn kubectl_bin() -> String {
+    std::env::var("KUMA_KUBECTL_BIN").unwrap_or_else(|_| "kubectl".into())
+}
+
 fn kubeconfig_path(store: &StoreHandle, kid: &str) -> String {
     if kid == kuma_store::kubeconfig::DEFAULT_ID {
         store
@@ -26,7 +30,7 @@ pub fn namespaces(id: Option<Value>, store: &StoreHandle, params: &Value) -> Res
         .and_then(|v| v.as_str())
         .unwrap_or(kuma_store::kubeconfig::DEFAULT_ID);
     let path = kubeconfig_path(store, kid);
-    let out = std::process::Command::new("kubectl")
+    let out = std::process::Command::new(kubectl_bin())
         .env("KUBECONFIG", &path)
         .args(["get", "ns", "-o", "json"])
         .output();
@@ -59,7 +63,7 @@ pub fn resources(id: Option<Value>, store: &StoreHandle, params: &Value) -> Resp
         .and_then(|v| v.as_str())
         .unwrap_or("default");
     let path = kubeconfig_path(store, kid);
-    let out = std::process::Command::new("kubectl")
+    let out = std::process::Command::new(kubectl_bin())
         .env("KUBECONFIG", &path)
         .args(["get", "all", "-n", ns, "-o", "json"])
         .output();

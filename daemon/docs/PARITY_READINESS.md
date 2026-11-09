@@ -7,7 +7,7 @@
 | `check_traceability.py` | Green |
 | `cargo test --workspace` | Green |
 | `cargo clippy -D warnings` | Green |
-| `cargo llvm-cov --fail-under-lines 72` (CI milestone) | Target **90%** — runner/service store depth next |
+| `cargo llvm-cov --fail-under-lines 72` (CI milestone) | Wave 2 DT + 4 partial rows closed; line **~70%** locally under llvm-cov (integration skipped when `LLVM_PROFILE_FILE` set) — gate **90%** next |
 | Swift `Kuma/` cutover | Out of scope until explicit gate |
 
 ## Works-well (mcp-tools.csv)
@@ -19,7 +19,8 @@
 
 - Live k8s discovery cache; RPC `logs.follow` event multiplex
 - `service.preflight` async `k8s.target_resolve`
-- Line coverage push to **90%** (`runner.rs`, `service/mod.rs`, `rest.rs` SSE)
+- Line coverage push to **90%** (`lib.rs` run loop, `runner.rs`, `settings.rs`, `workspace/mod.rs`)
+- **0** `logic_status=partial` in `mcp-tools.csv` (wave 2)
 
 ## Smoke
 

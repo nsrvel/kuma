@@ -40,11 +40,7 @@ PARTIAL_RPC = frozenset(
         "service.set_groups",
         "service.toggle_group",
         "service.switch_provider",
-        "service.preflight",
         "events.subscribe",
-        "k8s.namespaces",
-        "k8s.resources",
-        "logs.follow",
     }
 )
 

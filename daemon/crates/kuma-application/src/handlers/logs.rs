@@ -144,13 +144,5 @@ pub fn follow(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
     if sid.is_empty() {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing serviceID");
     }
-    let snap = logs.follow_snapshot(sid);
-    let mut body = snap;
-    if let Some(obj) = body.as_object_mut() {
-        obj.insert(
-            "hint".into(),
-            json!("Use events.subscribe for live workload lines; REST SSE /v1/services/{id}/logs/workload/stream"),
-        );
-    }
-    Response::ok(id, body)
+    Response::ok(id, logs.start_follow(sid))
 }

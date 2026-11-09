@@ -22,9 +22,9 @@ Group,"mcp,rest,cli",kuma_group_delete,Delete group (services stay),DELETE /v1/g
 Group,"mcp,rest,cli",kuma_group_list,Groups of a workspace,GET /v1/workspaces/{workspaceId}/groups,group.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Group,"mcp,rest,cli",kuma_group_reorder,Persist new order,PUT /v1/workspaces/{workspaceId}/groups/order,group.reorder,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Group,"mcp,rest,cli",kuma_group_update,Rename group,PATCH /v1/groups/{groupId},group.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Kubernetes,"mcp,rest,cli",kuma_k8s_namespaces,List namespaces,GET /v1/k8s/namespaces,k8s.namespaces,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl subprocess; cluster errors returned in payload
+Kubernetes,"mcp,rest,cli",kuma_k8s_namespaces,List namespaces,GET /v1/k8s/namespaces,k8s.namespaces,done,done,dt_k8s_rpc,y,—,y,y,y,2026-11-09,KUMA_KUBECTL_BIN fixture; JSON payload
 Kubernetes,"mcp,rest,cli",kuma_k8s_resolve_target,Resolve pattern to concrete resource,POST /v1/k8s/resolve-target,k8s.resolve_target,done,done,dt_kube,y,—,y,y,y,2026-11-09,kind/name parser; live discovery optional
-Kubernetes,"mcp,rest,cli",kuma_k8s_resources,List pods/services/deployments,GET /v1/k8s/resources,k8s.resources,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl get all; no live cache
+Kubernetes,"mcp,rest,cli",kuma_k8s_resources,List pods/services/deployments,GET /v1/k8s/resources,k8s.resources,done,done,dt_k8s_rpc,y,—,y,y,y,2026-11-09,kubectl get all via KUMA_KUBECTL_BIN
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_contexts,Parse contexts + current context,GET /v1/kubeconfigs/{kubeconfigId}/contexts,kubeconfig.contexts,done,done,dt_kube,y,—,y,y,y,2026-11-09,resolvedPlainYAML + contexts list
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_create,Register file-backed or pasted kubeconfig,POST /v1/kubeconfigs,kubeconfig.create,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_delete,Delete (not Default),DELETE /v1/kubeconfigs/{kubeconfigId},kubeconfig.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
@@ -33,7 +33,7 @@ Kubernetes,"mcp,rest,cli",kuma_kubeconfig_list,Registered kubeconfigs (+ virtual
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_test_connection,`kubectl version` probe with cache,POST /v1/kubeconfigs/{kubeconfigId}/test-connection,kubeconfig.test_connection,done,done,dt_kube,y,—,y,y,y,2026-11-09,TTL probe cache + verifiedAt wire
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_update,Update,PATCH /v1/kubeconfigs/{kubeconfigId},kubeconfig.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Logs,"mcp,rest,cli",kuma_logs_clear,Clear buffer,DELETE /v1/services/{serviceId}/logs/activity,logs.clear,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-09,RPC snapshot + hint; live stream via REST SSE
+Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,done,dt_log_follow,y,—,y,y,y,2026-11-09,subscriptionId registry; REST SSE for live
 Logs,"mcp,rest,cli",kuma_logs_tail,Activity-log buffer for a service,GET /v1/services/{serviceId}/logs/activity,logs.tail,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Logs,"mcp,rest,cli",kuma_logs_workload_tail,"One-shot workload logs (`kubectl logs`, compose logs, spool)",GET /v1/services/{serviceId}/logs/workload,logs.workload_tail,done,done,dt_log_workload,y,—,y,y,y,2026-11-09,kubectl one-shot + exec spool + activity fallback
 Provider,"mcp,rest,cli",kuma_provider_add,Add provider,POST /v1/services/{serviceId}/providers,provider.add,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
@@ -46,7 +46,7 @@ Service,"mcp,rest,cli",kuma_service_delete,Delete service,DELETE /v1/services/{s
 Service,"mcp,rest,cli",kuma_service_duplicate,"Duplicate with ""(Copy)""",POST /v1/services/{serviceId}/duplicate,service.duplicate,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Service,"mcp,rest,cli",kuma_service_get,"Service detail (providers, ports, groups)",GET /v1/services/{serviceId},service.get,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Service,"mcp,rest,cli",kuma_service_list,Deck items with filter/sort/search,GET /v1/services,service.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Service,"mcp,rest,cli",kuma_service_preflight,Run `ServiceConfigurationValidator` (+ async k8s target probe),POST /v1/services/{serviceId}/preflight,service.preflight,done,partial,DT-PRV;DT-PRV,y,—,y,y,y,2026-11-08,sync validator; async k8s.target_resolve pending
+Service,"mcp,rest,cli",kuma_service_preflight,Run `ServiceConfigurationValidator` (+ async k8s target probe),POST /v1/services/{serviceId}/preflight,service.preflight,done,done,dt_preflight_k8s_pattern_warning,y,—,y,y,y,2026-11-09,k8s.target_resolve warning for pattern targets
 Service,"mcp,rest,cli",kuma_service_restart,"Stop, 300 ms, start",POST /v1/services/{serviceId}/restart,service.restart,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Service,"mcp,rest,cli",kuma_service_set_disabled,Enable/disable,PUT /v1/services/{serviceId}/disabled,service.set_disabled,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Service,"mcp,rest,cli",kuma_service_set_groups,Replace group membership,PUT /v1/services/{serviceId}/groups,service.set_groups,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,

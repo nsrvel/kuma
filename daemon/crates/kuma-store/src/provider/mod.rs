@@ -319,16 +319,57 @@ fn provider_by_id_raw(conn: &Connection, id: &str) -> Result<ProviderRow, Servic
     .ok_or_else(|| ServiceError::ProviderNotFound { id: id.into() })
 }
 
-fn provider_by_id(conn: &Connection, id: &str) -> Result<Value, ServiceError> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, serviceID, type, label, kubeConfigID, kubeContext, kubeNamespace, targetName, kubeTargetType, usePattern, yamlConfig, initialScript, runCommand, workingDirectory, sshHost, sshUser, sshPort, sshKeyPath, sshPassword, httpCheckUrl, httpCheckInterval, tunnelType, tunnelTargetUrl, ngrokAuthToken, monitorProcessName, monitorInterval, createdAt, updatedAt, customKubeConfigPath, composeFilePath, initialScriptPath, autoReconnect FROM provider WHERE id = ?1",
-        )
-        .map_err(|e| io_err(&e.to_string()))?;
-    let row = stmt
-        .query_row([id], ProviderStoreHelper::read_row)
-        .map_err(|_| ServiceError::ProviderNotFound { id: id.into() })?;
-    Ok(provider_row_to_json(&row))
+fn enrich_provider_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
+    let row = ProviderStoreHelper::read_row(r)?;
+    let mut v = provider_row_to_json(&row);
+    let Some(obj) = v.as_object_mut() else {
+        return Ok(v);
+    };
+    merge_opt_str(obj, "kubeConfigID", r.get(4)?);
+    merge_opt_str(obj, "kubeContext", r.get(5)?);
+    merge_opt_str(obj, "kubeNamespace", r.get(6)?);
+    merge_opt_str(obj, "targetName", r.get(7)?);
+    merge_opt_str(obj, "kubeTargetType", r.get(8)?);
+    if let Ok(pat) = r.get::<_, Option<i64>>(9) {
+        obj.insert("usePattern".into(), json!(pat.unwrap_or(0) != 0));
+    }
+    merge_opt_str(obj, "yamlConfig", r.get(10)?);
+    merge_opt_str(obj, "initialScript", r.get(11)?);
+    merge_opt_str(obj, "sshHost", r.get(14)?);
+    merge_opt_str(obj, "sshUser", r.get(15)?);
+    merge_opt_str(obj, "sshKeyPath", r.get(17)?);
+    merge_opt_str(obj, "httpCheckUrl", r.get(19)?);
+    merge_opt_str(obj, "tunnelType", r.get(21)?);
+    merge_opt_str(obj, "tunnelTargetUrl", r.get(22)?);
+    merge_opt_str(obj, "monitorProcessName", r.get(24)?);
+    merge_opt_str(obj, "composeFilePath", r.get(29)?);
+    merge_opt_str(obj, "customKubeConfigPath", r.get(28)?);
+    merge_opt_str(obj, "initialScriptPath", r.get(30)?);
+    if let Ok(Some(p)) = r.get::<_, Option<i64>>(16) {
+        obj.insert("sshPort".into(), json!(p));
+    }
+    if let Ok(Some(n)) = r.get::<_, Option<i64>>(20) {
+        obj.insert("httpCheckInterval".into(), json!(n));
+    }
+    if let Ok(Some(n)) = r.get::<_, Option<i64>>(25) {
+        obj.insert("monitorInterval".into(), json!(n));
+    }
+    Ok(v)
+}
+
+pub(crate) fn provider_by_id(conn: &Connection, id: &str) -> Result<Value, ServiceError> {
+    conn.query_row(
+        "SELECT id, serviceID, type, label, kubeConfigID, kubeContext, kubeNamespace, targetName, kubeTargetType, usePattern, yamlConfig, initialScript, runCommand, workingDirectory, sshHost, sshUser, sshPort, sshKeyPath, sshPassword, httpCheckUrl, httpCheckInterval, tunnelType, tunnelTargetUrl, ngrokAuthToken, monitorProcessName, monitorInterval, createdAt, updatedAt, customKubeConfigPath, composeFilePath, initialScriptPath, autoReconnect FROM provider WHERE id = ?1",
+        [id],
+        enrich_provider_from_row,
+    )
+    .map_err(|_| ServiceError::ProviderNotFound { id: id.into() })
+}
+
+fn merge_opt_str(obj: &mut serde_json::Map<String, Value>, key: &str, v: Option<String>) {
+    if let Some(s) = v.filter(|s| !s.is_empty()) {
+        obj.insert(key.into(), json!(s));
+    }
 }
 
 fn port_mappings_for_provider(
@@ -417,6 +458,14 @@ fn apply_provider_patch(
     patch_str(conn, id, now, params, "kubeContext")?;
     patch_str(conn, id, now, params, "kubeNamespace")?;
     patch_str(conn, id, now, params, "targetName")?;
+    patch_str(conn, id, now, params, "kubeConfigID")?;
+    if let Some(v) = params.get("usePattern").and_then(|v| v.as_bool()) {
+        conn.execute(
+            "UPDATE provider SET usePattern = ?1, updatedAt = ?2 WHERE id = ?3",
+            rusqlite::params![v, now, id],
+        )
+        .map_err(|e| io_err(&e.to_string()))?;
+    }
     patch_str(conn, id, now, params, "yamlConfig")?;
     patch_str(conn, id, now, params, "initialScript")?;
     if let Some(v) = params.get("sshPort") {

@@ -64,6 +64,18 @@ fn dt_store_group_kube_provider_depth() {
     let mut dup = Map::new();
     dup.insert("id".into(), json!(sid));
     store.service().duplicate(&dup).unwrap();
+    let mut star = Map::new();
+    star.insert("id".into(), json!(sid));
+    star.insert("starred".into(), json!(true));
+    store.service().set_starred(&star).unwrap();
+    let mut dis = Map::new();
+    dis.insert("id".into(), json!(sid));
+    dis.insert("disabled".into(), json!(false));
+    store.service().set_disabled(&dis).unwrap();
+    let mut gr = Map::new();
+    gr.insert("id".into(), json!(sid));
+    gr.insert("groupIDs".into(), json!([]));
+    store.service().set_groups(&gr).unwrap();
     let plist = store.provider().list(sid).unwrap();
     let pid = plist["providers"][0]["id"].as_str().unwrap();
     for (ptype, extra) in [
