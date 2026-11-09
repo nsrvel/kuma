@@ -4,6 +4,7 @@ mod dataport;
 mod env;
 mod events;
 mod group;
+mod kube;
 pub mod kubeconfig;
 mod kuma_db;
 mod legacy_import;
@@ -34,6 +35,7 @@ pub use dataport::DataPort;
 pub use env::EnvService;
 pub use events::EventBus;
 pub use group::GroupStore;
+pub use kube::resolve_target as resolve_k8s_target;
 pub use kubeconfig::KubeConfigStore;
 pub use kuma_db::{
     foreign_keys_enabled, is_sqlite_file, journal_mode, open_kuma_connection, table_count,

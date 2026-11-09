@@ -611,6 +611,80 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rest_security_gates() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/v1/settings")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            router.clone().oneshot(req).await.unwrap().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/v1/settings")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .header(header::ORIGIN, "https://evil.example")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            router.clone().oneshot(req).await.unwrap().status(),
+            StatusCode::FORBIDDEN
+        );
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/v1/settings?revealSecrets=1")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            router.clone().oneshot(req).await.unwrap().status(),
+            StatusCode::FORBIDDEN
+        );
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri("/v1/settings")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .header(header::HOST, "evil.example")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(
+            router.oneshot(req).await.unwrap().status(),
+            StatusCode::FORBIDDEN
+        );
+    }
+
+    #[tokio::test]
+    async fn rest_mutating_routes_smoke() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let auth = format!("Bearer {token}");
+        let body = json!({ "name": "rest-ws-x" });
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/v1/workspaces")
+            .header(header::AUTHORIZATION, auth.clone())
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status() == StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
     async fn rest_jsonrpc_post() {
         let dir = tempfile::tempdir().unwrap();
         let (app, token) = test_app(dir.path());

@@ -3,25 +3,23 @@
 | Check | Status |
 |-------|--------|
 | `validate_mcp_tools_csv.py --strict` | Green |
-| `validate_mcp_tools_honesty.py --strict` | Green (works-well columns) |
+| `validate_mcp_tools_honesty.py --strict` | Green |
 | `check_traceability.py` | Green |
 | `cargo test --workspace` | Green |
 | `cargo clippy -D warnings` | Green |
-| `cargo llvm-cov --fail-under-lines 67` (CI floor) | Green at ~68% lines; **target 90%** — runner/rest depth still red |
+| `cargo llvm-cov --fail-under-lines 72` (CI milestone) | Target **90%** — runner/service store depth next |
 | Swift `Kuma/` cutover | Out of scope until explicit gate |
 
 ## Works-well (mcp-tools.csv)
 
-- **`logic_status=done`:** no contradictory `notes`; gaps only on `partial` rows (k8s probe, logs workload/follow, preflight async).
-- **`auto_test=y`:** every row has `dt_coverage`; registry smoke via `dt_rpc_smoke` (+ module DT tests).
-- Honesty scripts: [`validate_mcp_tools_honesty.py`](../../docs/specs/daemon/validate_mcp_tools_honesty.py), column sync [`sync_mcp_tools_honesty.py`](../../docs/specs/daemon/sync_mcp_tools_honesty.py).
+- **`logic_status=partial` (4):** `k8s.namespaces`, `k8s.resources`, `logs.follow`, `service.preflight`
+- **`auto_test=y`:** smoke + module DT (`dt_kube`, `dt_log_workload`, `dt_prv_delete`, …)
 
-## Residual spec depth (partial rows in CSV)
+## Residual spec depth
 
-- Full §07 k8s target matcher + connection cache
-- `logs.workload_tail` kubectl/compose capture
-- RPC `logs.follow` streaming (REST SSE exists)
-- Full DT-PRV / DT-DPT / DT-EXE matrices vs 1.x
+- Live k8s discovery cache; RPC `logs.follow` event multiplex
+- `service.preflight` async `k8s.target_resolve`
+- Line coverage push to **90%** (`runner.rs`, `service/mod.rs`, `rest.rs` SSE)
 
 ## Smoke
 
@@ -30,5 +28,5 @@ cd daemon && cargo test --workspace
 python3 ../docs/specs/daemon/validate_mcp_tools_csv.py --strict
 python3 ../docs/specs/daemon/validate_mcp_tools_honesty.py --strict
 python3 ../docs/specs/daemon/check_traceability.py
-cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 67
+cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 72
 ```

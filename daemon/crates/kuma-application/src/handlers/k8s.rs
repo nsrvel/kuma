@@ -85,14 +85,6 @@ pub fn resolve_target(id: Option<Value>, _store: &KubeConfigStore, params: &Valu
     let pattern = params
         .get("usePattern")
         .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    Response::ok(
-        id,
-        json!({
-            "resolvedTarget": if target.is_empty() { Value::Null } else { json!(target) },
-            "usePattern": pattern,
-            "liveTarget": Value::Null,
-            "matched": !target.is_empty(),
-        }),
-    )
+        .unwrap_or(true);
+    Response::ok(id, kuma_store::resolve_k8s_target(target, pattern))
 }

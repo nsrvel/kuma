@@ -28,6 +28,22 @@ fn dt_exe_kubernetes_run_command_path() {
     stop_service(&eng, sid).unwrap();
 }
 
+fn assert_start_err(provider: serde_json::Value, needle: &str) {
+    let eng = Arc::new(ExecEngine::new());
+    let sid = "00000000-0000-4000-8000-0000000000ae";
+    let err = start_service(&eng, sid, &provider).unwrap_err().to_string();
+    assert!(err.contains(needle), "err={err}");
+}
+
+#[test]
+fn dt_exe_required_fields_matrix() {
+    assert_start_err(json!({"type": "shell"}), "runCommand");
+    assert_start_err(json!({"type": "ssh"}), "sshHost");
+    assert_start_err(json!({"type": "tunnel"}), "tunnelTargetUrl");
+    assert_start_err(json!({"type": "httpCheck"}), "httpCheckUrl");
+    assert_start_err(json!({"type": "processMonitor"}), "monitorProcessName");
+}
+
 #[test]
 fn dt_exe_docker_run_command_avoids_compose_up() {
     let eng = Arc::new(ExecEngine::new());

@@ -29,13 +29,15 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-### Line coverage (CI gate ≥90%)
+### Line coverage (CI milestone 72%, target 90%)
 
 CI (`.github/workflows/daemon-ci.yml`) installs `cargo-llvm-cov` with `llvm-tools-preview` and runs:
 
 ```bash
-cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 90
+cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 72
 ```
+
+Roadmap gate **90%** is tracked in [`docs/PARITY_READINESS.md`](docs/PARITY_READINESS.md).
 
 Local (requires `rustup component add llvm-tools-preview` and `cargo install cargo-llvm-cov`):
 

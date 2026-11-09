@@ -5,9 +5,19 @@ use crate::Vault;
 use kuma_domain::KubeConfigError;
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
+
+const PROBE_TTL_SECS: u64 = 300;
+
+#[derive(Clone)]
+struct ProbeCacheEntry {
+    body: Value,
+    expires_at: u64,
+}
 
 pub const DEFAULT_ID: &str = "00000000-0000-0000-0000-000000000001";
 
@@ -17,6 +27,7 @@ pub struct KubeConfigStore {
     data_dir: PathBuf,
     settings: SettingsStore,
     vault: Vault,
+    probe_cache: Arc<Mutex<HashMap<String, ProbeCacheEntry>>>,
 }
 
 impl KubeConfigStore {
@@ -31,7 +42,97 @@ impl KubeConfigStore {
             data_dir,
             settings,
             vault,
+            probe_cache: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn test_connection(&self, params: &Map<String, Value>) -> Result<Value, KubeConfigError> {
+        let id = normalize_id(
+            params
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or(KubeConfigError::NotFound { id: "".into() })?,
+        )?;
+        let ctx = params
+            .get("context")
+            .or_else(|| params.get("kubeContext"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let refresh = params
+            .get("refresh")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let cache_key = format!("{id}::{ctx}");
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if !refresh {
+            if let Ok(cache) = self.probe_cache.lock() {
+                if let Some(entry) = cache.get(&cache_key) {
+                    if entry.expires_at > now {
+                        return Ok(entry.body.clone());
+                    }
+                }
+            }
+        }
+        let yaml = self.resolved_plain_yaml(&id)?;
+        let chk_dir = self.data_dir.join("kube-probes");
+        std::fs::create_dir_all(&chk_dir).map_err(|e| io_err(&e.to_string()))?;
+        let tmp = chk_dir.join(format!("kuma-chk-{id}.yaml"));
+        std::fs::write(&tmp, yaml.trim()).map_err(|e| io_err(&e.to_string()))?;
+        let kubectl = std::env::var("KUMA_KUBECTL_BIN").unwrap_or_else(|_| "kubectl".into());
+        let mut cmd = std::process::Command::new(kubectl);
+        cmd.env("KUBECONFIG", &tmp)
+            .args(["version", "--output=yaml", "--request-timeout=4s"]);
+        if !ctx.is_empty() {
+            cmd.args(["--context", ctx]);
+        }
+        let output = cmd.output().map_err(|e| io_err(&e.to_string()))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let reachable = output.status.success()
+            && (stdout.contains("serverVersion") || stdout.contains("gitVersion"));
+        let verified_at = now_grdb_datetime();
+        let body = json!({
+            "reachable": reachable,
+            "ok": reachable,
+            "errorMessage": if reachable { Value::Null } else { json!(stderr.trim()) },
+            "verifiedAt": verified_at,
+            "clientVersion": stdout.trim(),
+        });
+        if let Ok(mut cache) = self.probe_cache.lock() {
+            cache.insert(
+                cache_key,
+                ProbeCacheEntry {
+                    body: body.clone(),
+                    expires_at: now + PROBE_TTL_SECS,
+                },
+            );
+        }
+        let _ = std::fs::remove_file(tmp);
+        Ok(body)
+    }
+
+    /// Prefer on-disk `sourceFilePath` when present (§3.2).
+    pub fn resolved_plain_yaml(&self, id: &str) -> Result<String, KubeConfigError> {
+        let id = normalize_id(id)?;
+        if id == DEFAULT_ID {
+            return default_plain_yaml(&self.settings);
+        }
+        let entry = self.get(&id, false)?;
+        if let Some(p) = entry
+            .get("sourceFilePath")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let path = expand_tilde(p);
+            if path.is_file() {
+                return std::fs::read_to_string(&path).map_err(|e| io_err(&e.to_string()));
+            }
+        }
+        self.plain_yaml(&id)
     }
 
     pub fn list(&self) -> Result<Value, KubeConfigError> {
@@ -239,7 +340,7 @@ impl KubeConfigStore {
     }
 
     pub fn contexts(&self, id: &str) -> Result<Value, KubeConfigError> {
-        let yaml = self.plain_yaml(id)?;
+        let yaml = self.resolved_plain_yaml(id)?;
         Ok(parse_kube_contexts(&yaml))
     }
 
@@ -341,7 +442,8 @@ fn parse_kube_contexts(yaml: &str) -> Value {
         if let Some(rest) = t.strip_prefix("current-context:") {
             current_ctx = rest.trim().to_string();
         } else if let Some(rest) = t.strip_prefix("- name:") {
-            contexts.push(json!({ "name": rest.trim() }));
+            let name = rest.trim().trim_matches('"').trim_matches('\'');
+            contexts.push(json!({ "name": name }));
         }
     }
     json!({

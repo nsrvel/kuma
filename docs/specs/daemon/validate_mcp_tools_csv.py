@@ -44,10 +44,6 @@ PARTIAL_RPC = frozenset(
         "events.subscribe",
         "k8s.namespaces",
         "k8s.resources",
-        "k8s.resolve_target",
-        "kubeconfig.contexts",
-        "kubeconfig.test_connection",
-        "logs.workload_tail",
         "logs.follow",
     }
 )

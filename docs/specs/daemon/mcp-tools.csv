@@ -23,19 +23,19 @@ Group,"mcp,rest,cli",kuma_group_list,Groups of a workspace,GET /v1/workspaces/{w
 Group,"mcp,rest,cli",kuma_group_reorder,Persist new order,PUT /v1/workspaces/{workspaceId}/groups/order,group.reorder,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Group,"mcp,rest,cli",kuma_group_update,Rename group,PATCH /v1/groups/{groupId},group.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Kubernetes,"mcp,rest,cli",kuma_k8s_namespaces,List namespaces,GET /v1/k8s/namespaces,k8s.namespaces,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl subprocess; cluster errors returned in payload
-Kubernetes,"mcp,rest,cli",kuma_k8s_resolve_target,Resolve pattern to concrete resource,POST /v1/k8s/resolve-target,k8s.resolve_target,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,pattern resolve stub; full §07 matcher pending
+Kubernetes,"mcp,rest,cli",kuma_k8s_resolve_target,Resolve pattern to concrete resource,POST /v1/k8s/resolve-target,k8s.resolve_target,done,done,dt_kube,y,—,y,y,y,2026-11-09,kind/name parser; live discovery optional
 Kubernetes,"mcp,rest,cli",kuma_k8s_resources,List pods/services/deployments,GET /v1/k8s/resources,k8s.resources,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl get all; no live cache
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_contexts,Parse contexts + current context,GET /v1/kubeconfigs/{kubeconfigId}/contexts,kubeconfig.contexts,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,contexts from store parser only
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_contexts,Parse contexts + current context,GET /v1/kubeconfigs/{kubeconfigId}/contexts,kubeconfig.contexts,done,done,dt_kube,y,—,y,y,y,2026-11-09,resolvedPlainYAML + contexts list
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_create,Register file-backed or pasted kubeconfig,POST /v1/kubeconfigs,kubeconfig.create,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_delete,Delete (not Default),DELETE /v1/kubeconfigs/{kubeconfigId},kubeconfig.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_get,One kubeconfig (content decrypted on request),GET /v1/kubeconfigs/{kubeconfigId},kubeconfig.get,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_list,Registered kubeconfigs (+ virtual Default),GET /v1/kubeconfigs,kubeconfig.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Kubernetes,"mcp,rest,cli",kuma_kubeconfig_test_connection,`kubectl version` probe with cache,POST /v1/kubeconfigs/{kubeconfigId}/test-connection,kubeconfig.test_connection,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,kubectl version probe; no cache TTL
+Kubernetes,"mcp,rest,cli",kuma_kubeconfig_test_connection,`kubectl version` probe with cache,POST /v1/kubeconfigs/{kubeconfigId}/test-connection,kubeconfig.test_connection,done,done,dt_kube,y,—,y,y,y,2026-11-09,TTL probe cache + verifiedAt wire
 Kubernetes,"mcp,rest,cli",kuma_kubeconfig_update,Update,PATCH /v1/kubeconfigs/{kubeconfigId},kubeconfig.update,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Logs,"mcp,rest,cli",kuma_logs_clear,Clear buffer,DELETE /v1/services/{serviceId}/logs/activity,logs.clear,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,RPC snapshot; SSE multiplex on REST only
+Logs,"mcp,rest,cli",kuma_logs_follow,Streaming workload logs via subscription,GET /v1/services/{serviceId}/logs/workload/stream (SSE),logs.follow,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-09,RPC snapshot + hint; live stream via REST SSE
 Logs,"mcp,rest,cli",kuma_logs_tail,Activity-log buffer for a service,GET /v1/services/{serviceId}/logs/activity,logs.tail,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
-Logs,"mcp,rest,cli",kuma_logs_workload_tail,"One-shot workload logs (`kubectl logs`, compose logs, spool)",GET /v1/services/{serviceId}/logs/workload,logs.workload_tail,done,partial,dt-rpc-smoke,y,—,y,y,y,2026-11-08,activity buffer + spool; kubectl/compose tail pending
+Logs,"mcp,rest,cli",kuma_logs_workload_tail,"One-shot workload logs (`kubectl logs`, compose logs, spool)",GET /v1/services/{serviceId}/logs/workload,logs.workload_tail,done,done,dt_log_workload,y,—,y,y,y,2026-11-09,kubectl one-shot + exec spool + activity fallback
 Provider,"mcp,rest,cli",kuma_provider_add,Add provider,POST /v1/services/{serviceId}/providers,provider.add,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Provider,"mcp,rest,cli",kuma_provider_delete,Delete provider (repoint active),DELETE /v1/providers/{providerId},provider.delete,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,
 Provider,"mcp,rest,cli",kuma_provider_list,Providers of a service,GET /v1/services/{serviceId}/providers,provider.list,done,done,dt-rpc-smoke,y,—,y,y,y,2026-11-08,

@@ -359,7 +359,7 @@ impl Application {
                 DispatchOutcome::Reply(logs::clear(req.id, store.logs(), &req.params))
             }
             methods::LOGS_WORKLOAD_TAIL => {
-                DispatchOutcome::Reply(logs::workload_tail(req.id, store.logs(), &req.params))
+                DispatchOutcome::Reply(logs::workload_tail(req.id, store.as_ref(), &req.params))
             }
             methods::LOGS_FOLLOW => {
                 DispatchOutcome::Reply(logs::follow(req.id, store.logs(), &req.params))

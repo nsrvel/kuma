@@ -5,15 +5,13 @@ on:
     branches: [main]
     paths:
       - 'daemon/**'
-      - 'docs/specs/daemon/mcp-tools.csv'
-      - 'docs/specs/daemon/validate_mcp_tools_csv.py'
+      - 'docs/specs/daemon/**'
       - '.github/workflows/daemon-ci.yml'
   pull_request:
     branches: [main]
     paths:
       - 'daemon/**'
-      - 'docs/specs/daemon/mcp-tools.csv'
-      - 'docs/specs/daemon/validate_mcp_tools_csv.py'
+      - 'docs/specs/daemon/**'
       - '.github/workflows/daemon-ci.yml'
 
 concurrency:
@@ -69,6 +67,6 @@ jobs:
           KUMA_SKIP_PATH_SNIFF: "1"
         run: cargo test --all
 
-      # ponytail: CI floor 67% until runner/REST harnesses land; raise toward plan target 90% (see PARITY_READINESS)
-      - name: Line coverage (floor 67%, target 90%, exclude kuma-cli)
-        run: cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 67
+      # ponytail: milestone 72% while chasing plan target 90% (see PARITY_READINESS)
+      - name: Line coverage (milestone 72%, target 90%, exclude kuma-cli)
+        run: cargo llvm-cov --all --exclude kuma-cli --summary-only --fail-under-lines 72
