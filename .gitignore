@@ -29,6 +29,9 @@ build_output*.log
 Icon
 ._*
 
+# Rust (Kuma daemon workspace)
+daemon/target/
+
 # Temporary files & local caches
 *.swp
 *.bak

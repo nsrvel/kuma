@@ -1,0 +1,3 @@
+# Avoid login-shell PATH sniff during `cargo test` (can hang in CI/sandbox; see env/path.rs).
+[env]
+KUMA_SKIP_PATH_SNIFF = "1"

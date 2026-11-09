@@ -1,0 +1,9 @@
+[package]
+name = "kuma-domain"
+description = "Pure domain types and errors for the Kuma daemon"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
