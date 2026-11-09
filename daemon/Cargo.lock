@@ -780,6 +780,7 @@ dependencies = [
  "subtle",
  "tempfile",
  "tokio",
+ "tower",
  "tracing",
 ]
 
@@ -798,6 +799,7 @@ dependencies = [
  "kuma-domain",
  "kuma-protocol",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tracing",
 ]

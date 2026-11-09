@@ -28,16 +28,20 @@ pub async fn serve(app: Arc<Application>, data_dir: &Path) -> anyhow::Result<()>
     }
     let token_path = api_token_path(data_dir);
     let state = RestState { app, token_path };
-    let router = Router::new()
-        .route("/v1/jsonrpc", axum::routing::post(jsonrpc))
-        .nest("/v1", Router::new().fallback(v1_fallback))
-        .layer(axum::middleware::from_fn(security_headers))
-        .with_state(state);
+    let router = build_router(state);
     let addr: std::net::SocketAddr = "127.0.0.1:9364".parse().unwrap();
     let listener = TcpListener::bind(addr).await?;
     tracing::info!(%addr, routes = crate::rest_registry::route_keys().len(), "REST listener active");
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+fn build_router(state: RestState) -> Router {
+    Router::new()
+        .route("/v1/jsonrpc", axum::routing::post(jsonrpc))
+        .nest("/v1", Router::new().fallback(v1_fallback))
+        .layer(axum::middleware::from_fn(security_headers))
+        .with_state(state)
 }
 
 async fn security_headers(request: AxumRequest, next: axum::middleware::Next) -> Response {
@@ -466,5 +470,117 @@ fn map_rpc_http_status(code: i32, message: &str) -> StatusCode {
         StatusCode::UNPROCESSABLE_ENTITY
     } else {
         StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::Request;
+    use kuma_application::{Application, DataCounts, LifecycleState};
+    use kuma_exec::ExecEngine;
+    use kuma_store::{ensure_api_token, StoreHandle};
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    fn test_app(dir: &std::path::Path) -> (Arc<Application>, String) {
+        let missing = dir.join("no-legacy.plist");
+        std::env::set_var("KUMA_LEGACY_DEFAULTS_PLIST", missing.to_str().unwrap());
+        ensure_api_token(dir).unwrap();
+        let store = Arc::new(StoreHandle::open(dir).unwrap());
+        std::env::remove_var("KUMA_LEGACY_DEFAULTS_PLIST");
+        let app = Arc::new(Application::new(
+            store,
+            ExecEngine::new(),
+            Arc::new(|| {}),
+            LifecycleState::new("0.1.0", "00000000-0000-4000-8000-000000000099".into()),
+            DataCounts::empty(),
+        ));
+        let token = read_token_file(&api_token_path(dir));
+        (app, token)
+    }
+
+    #[test]
+    fn rest_auth_and_merge_helpers() {
+        let mut headers = HeaderMap::new();
+        assert!(!authorized(&headers, "secret"));
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer secret"),
+        );
+        assert!(authorized(&headers, "secret"));
+        assert!(reject_host(&HeaderMap::new()) == false);
+        headers.insert(header::HOST, HeaderValue::from_static("evil.test"));
+        assert!(reject_host(&headers));
+        let mut params = json!({});
+        merge_query("foo=bar&x=y", &mut params);
+        assert_eq!(params["foo"], "bar");
+        merge_body(&json!({"a": 1}), &mut params);
+        assert_eq!(params["a"], 1);
+        assert_eq!(
+            map_rpc_http_status(ERR_KUMA, "KUMA_CONFLICT"),
+            StatusCode::CONFLICT
+        );
+    }
+
+    #[tokio::test]
+    async fn rest_get_routes_smoke() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let auth = format!("Bearer {token}");
+        let paths = [
+            "/v1/daemon/ping",
+            "/v1/daemon/status",
+            "/v1/settings",
+            "/v1/workspaces",
+        ];
+        for path in paths {
+            let req = Request::builder()
+                .method(Method::GET)
+                .uri(path)
+                .header(header::AUTHORIZATION, auth.clone())
+                .body(Body::empty())
+                .unwrap();
+            let resp = router.clone().oneshot(req).await.unwrap();
+            assert!(
+                resp.status().is_success() || resp.status() == StatusCode::NOT_FOUND,
+                "{path} status {}",
+                resp.status()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn rest_jsonrpc_post() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let body = Body::from(
+            serde_json::to_vec(&json!({
+                "jsonrpc": "2.0",
+                "method": "daemon.ping",
+                "params": { "clientKind": "rest" },
+                "id": 1
+            }))
+            .unwrap(),
+        );
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri("/v1/jsonrpc")
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(body)
+            .unwrap();
+        let resp = router.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

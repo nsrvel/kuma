@@ -23,4 +23,5 @@ base64 = "0.22"
 [dev-dependencies]
 kuma-client = { path = "../kuma-client" }
 tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true, features = ["io-util", "macros", "net", "rt-multi-thread", "time"] }

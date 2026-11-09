@@ -46,3 +46,22 @@ pub fn remove_ephemeral_compose(service_id: &str) {
         .join(service_id.to_uppercase());
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn dt_compose_materialize_yaml() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("KUMA_RUNTIME_DIR", dir.path());
+        let provider = json!({"yamlConfig": "services:\n  web:\n    image: nginx\n"});
+        let (path, ephemeral) =
+            materialize_compose_file("00000000-0000-4000-8000-0000000000aa", &provider).unwrap();
+        assert!(ephemeral);
+        assert!(path.is_file());
+        remove_ephemeral_compose("00000000-0000-4000-8000-0000000000aa");
+        std::env::remove_var("KUMA_RUNTIME_DIR");
+    }
+}

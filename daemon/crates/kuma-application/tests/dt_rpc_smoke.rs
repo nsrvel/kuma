@@ -98,22 +98,25 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         methods::ENV_VALIDATE_BINARY => json!({ "path": "/bin/echo" }),
         methods::ENV_REFRESH => json!({}),
         methods::WORKSPACE_LIST => json!({}),
-        methods::WORKSPACE_GET | methods::WORKSPACE_DELETE | methods::WORKSPACE_GET_IMAGE => {
-            json!({ "id": f.workspace_id })
+        methods::WORKSPACE_GET | methods::WORKSPACE_DELETE => {
+            json!({ "id": "00000000-0000-4000-8000-000000009999" })
         }
+        methods::WORKSPACE_GET_IMAGE => json!({ "id": f.workspace_id }),
         methods::WORKSPACE_CREATE => json!({ "name": "ws-smoke-2" }),
         methods::WORKSPACE_UPDATE => json!({ "id": f.workspace_id, "name": "Default" }),
         methods::WORKSPACE_REORDER => json!({ "order": [f.workspace_id.clone()] }),
-        methods::WORKSPACE_SET_IMAGE => json!({ "id": f.workspace_id, "imageBase64": "" }),
+        methods::WORKSPACE_SET_IMAGE => json!({
+            "id": f.workspace_id,
+            "imageBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        }),
         methods::WORKSPACE_CLEAR_IMAGE => json!({ "id": f.workspace_id }),
         methods::GROUP_LIST => json!({ "workspaceID": f.workspace_id }),
         methods::GROUP_CREATE => json!({ "workspaceID": f.workspace_id, "name": "g2" }),
         methods::GROUP_UPDATE => json!({ "id": f.group_id, "name": "smoke-grp" }),
-        methods::GROUP_DELETE => json!({ "id": f.group_id }),
+        methods::GROUP_DELETE => json!({ "id": "00000000-0000-4000-8000-000000009998" }),
         methods::GROUP_REORDER => json!({ "workspaceID": f.workspace_id, "order": [] }),
         methods::SERVICE_LIST => json!({}),
         methods::SERVICE_GET
-        | methods::SERVICE_DELETE
         | methods::SERVICE_DUPLICATE
         | methods::SERVICE_PREFLIGHT
         | methods::SERVICE_START
@@ -147,7 +150,12 @@ fn params_for(f: &SmokeFixture, method: &str) -> Value {
         methods::PROVIDER_UPDATE => {
             json!({ "id": f.provider_id, "type": "shell", "runCommand": "echo hi" })
         }
-        methods::PROVIDER_DELETE => json!({ "id": f.provider_id }),
+        methods::SERVICE_DELETE => {
+            json!({ "id": "00000000-0000-4000-8000-000000009997" })
+        }
+        methods::PROVIDER_DELETE => {
+            json!({ "id": "00000000-0000-4000-8000-000000009996" })
+        }
         methods::PROVIDER_SET_PORTS => {
             json!({
                 "serviceID": f.service_id,

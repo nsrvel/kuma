@@ -85,3 +85,58 @@ pub fn service_preflight(conn: &Connection, service_id: &str) -> Result<Value, S
         "issues": issues,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::StoreHandle;
+    use serde_json::{json, Map};
+
+    #[test]
+    fn dt_preflight_disabled_service_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = StoreHandle::open(dir.path()).unwrap();
+        let ws = store.workspace().list().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut create = Map::new();
+        create.insert("workspaceID".into(), json!(ws));
+        create.insert("name".into(), json!("pf"));
+        let svc = store.service().create(&create).unwrap();
+        let sid = svc["id"].as_str().unwrap();
+        let mut dis = Map::new();
+        dis.insert("id".into(), json!(sid));
+        dis.insert("disabled".into(), json!(true));
+        store.service().set_disabled(&dis).unwrap();
+        let mut pre = Map::new();
+        pre.insert("id".into(), json!(sid));
+        let out = store.service().preflight(&pre).unwrap();
+        assert_eq!(out["serviceDisabled"], true);
+    }
+
+    #[test]
+    fn dt_preflight_shell_provider() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = StoreHandle::open(dir.path()).unwrap();
+        let ws = store.workspace().list().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut create = Map::new();
+        create.insert("workspaceID".into(), json!(ws));
+        create.insert("name".into(), json!("pf2"));
+        let svc = store.service().create(&create).unwrap();
+        let sid = svc["id"].as_str().unwrap();
+        let plist = store.provider().list(sid).unwrap();
+        let pid = plist["providers"][0]["id"].as_str().unwrap();
+        let mut p = Map::new();
+        p.insert("id".into(), json!(pid));
+        p.insert("type".into(), json!("shell"));
+        p.insert("runCommand".into(), json!("echo ok"));
+        store.provider().update(store.vault(), &p).unwrap();
+        let mut pre = Map::new();
+        pre.insert("id".into(), json!(sid));
+        let out = store.service().preflight(&pre).unwrap();
+        assert_eq!(out["ok"], true);
+    }
+}

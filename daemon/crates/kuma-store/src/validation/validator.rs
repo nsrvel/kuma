@@ -240,3 +240,60 @@ fn monitor_issues(provider: &Value) -> Vec<Value> {
         Vec::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn dt_validation_port_rows_kubernetes() {
+        let issues = configuration_issues(
+            &json!({"type": "kubernetes", "kubeConfigID": "k", "kubeContext": "c", "targetName": "p"}),
+            &[json!({"localPort": 0, "remotePort": 0})],
+            true,
+        );
+        assert!(issues.iter().any(|i| i["code"] == "ports.required"));
+        let issues = configuration_issues(
+            &json!({"type": "kubernetes", "kubeConfigID": "k", "kubeContext": "c", "targetName": "p"}),
+            &[json!({"localPort": 1, "remotePort": 2})],
+            true,
+        );
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn dt_validation_provider_types() {
+        let k8s = configuration_issues(&json!({"type": "kubernetes"}), &[], true);
+        assert!(k8s.iter().any(|i| i["code"] == "k8s.kubeconfig"));
+        let shell = configuration_issues(&json!({"type": "shell"}), &[], true);
+        assert!(shell.iter().any(|i| i["code"] == "shell.command"));
+        let health = configuration_issues(
+            &json!({"type": "httpCheck", "httpCheckUrl": "not a url"}),
+            &[],
+            true,
+        );
+        assert!(health.iter().any(|i| i["code"] == "health.url_invalid"));
+        let ok_health = configuration_issues(
+            &json!({"type": "httpCheck", "httpCheckUrl": "http://127.0.0.1"}),
+            &[],
+            true,
+        );
+        assert!(ok_health.is_empty());
+        assert!(!configuration_issues(&json!({"type": "tunnel"}), &[], true).is_empty());
+        assert!(!configuration_issues(&json!({"type": "processMonitor"}), &[], true).is_empty());
+        assert!(!configuration_issues(&json!({"type": "ssh"}), &[], true).is_empty());
+    }
+
+    #[test]
+    fn dt_validation_compose_path_or_yaml() {
+        let missing = configuration_issues(&json!({"type": "docker"}), &[], true);
+        assert!(missing.iter().any(|i| i["code"] == "compose.missing"));
+        let yaml_ok = configuration_issues(
+            &json!({"type": "podman", "yamlConfig": "services:\n  x:\n    image: x"}),
+            &[],
+            true,
+        );
+        assert!(yaml_ok.is_empty());
+    }
+}
