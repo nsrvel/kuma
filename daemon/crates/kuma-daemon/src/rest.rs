@@ -556,6 +556,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rest_all_registered_get_routes() {
+        let dir = tempfile::tempdir().unwrap();
+        let (app, token) = test_app(dir.path());
+        let ws = app.store().workspace().list().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut create = serde_json::Map::new();
+        create.insert("workspaceID".into(), json!(ws));
+        create.insert("name".into(), json!("rest-m"));
+        let svc = app.store().service().create(&create).unwrap();
+        let sid = svc["id"].as_str().unwrap();
+        let plist = app.store().provider().list(sid).unwrap();
+        let pid = plist["providers"][0]["id"].as_str().unwrap();
+        let kid = kuma_store::kubeconfig::DEFAULT_ID;
+
+        let state = RestState {
+            app,
+            token_path: api_token_path(dir.path()),
+        };
+        let router = build_router(state);
+        let auth = format!("Bearer {token}");
+
+        for route in crate::rest_registry::load_routes() {
+            if route.method != Method::GET {
+                continue;
+            }
+            if route.path.contains("stream") || route.path.contains("image") {
+                continue;
+            }
+            let path = route
+                .path
+                .replace(":workspaceId", &ws)
+                .replace(":serviceId", sid)
+                .replace(":providerId", pid)
+                .replace(":kubeconfigId", kid)
+                .replace(":groupId", "00000000-0000-4000-8000-000000009999")
+                .replace(":key", "autoResume")
+                .replace(":subscriptionId", "0");
+            let uri = format!("/v1{path}");
+            let req = Request::builder()
+                .method(Method::GET)
+                .uri(&uri)
+                .header(header::AUTHORIZATION, auth.clone())
+                .body(Body::empty())
+                .unwrap();
+            let resp = router.clone().oneshot(req).await.unwrap();
+            assert!(
+                resp.status() != StatusCode::UNAUTHORIZED,
+                "unauthorized on {uri}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn rest_jsonrpc_post() {
         let dir = tempfile::tempdir().unwrap();
         let (app, token) = test_app(dir.path());
