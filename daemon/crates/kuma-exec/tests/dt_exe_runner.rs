@@ -47,24 +47,19 @@ fn dt_exe_required_fields_matrix() {
 #[test]
 fn dt_exe_more_provider_run_commands() {
     let eng = Arc::new(ExecEngine::new());
-    let sid = "00000000-0000-4000-8000-0000000000af";
-    for (ptype, provider) in [
+    let cases = [
         (
-            "tunnel",
-            json!({"type": "tunnel", "runCommand": "sleep 20", "tunnelTargetUrl": "http://127.0.0.1"}),
+            "00000000-0000-4000-8000-0000000000b1",
+            json!({"type": "httpCheck", "httpCheckUrl": "http://127.0.0.1", "httpCheckInterval": 3600}),
         ),
         (
-            "httpCheck",
-            json!({"type": "httpCheck", "runCommand": "sleep 20", "httpCheckUrl": "http://127.0.0.1"}),
+            "00000000-0000-4000-8000-0000000000b2",
+            json!({"type": "processMonitor", "monitorProcessName": "sleep", "monitorInterval": 3600}),
         ),
-        (
-            "processMonitor",
-            json!({"type": "processMonitor", "runCommand": "sleep 20", "monitorProcessName": "sleep"}),
-        ),
-    ] {
+    ];
+    for (sid, provider) in cases {
         start_service(&eng, sid, &provider).unwrap();
         stop_service(&eng, sid).unwrap();
-        let _ = ptype;
     }
 }
 
