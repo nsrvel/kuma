@@ -1,5 +1,7 @@
 use kuma_store::{KubeConfigStore, StoreHandle};
 use serde_json::json;
+use std::fs;
+use std::io::Write;
 
 fn open() -> (tempfile::TempDir, KubeConfigStore) {
     let dir = tempfile::tempdir().unwrap();
@@ -29,13 +31,30 @@ fn dt_k8s_resolve_target_parser() {
     assert_eq!(v["kubectlReference"], "pod/redis");
 }
 
+fn mock_kubectl(dir: &tempfile::TempDir) -> String {
+    let path = dir.path().join("mock-kubectl.sh");
+    let mut f = fs::File::create(&path).unwrap();
+    writeln!(
+        f,
+        "#!/bin/sh\nif [ \"$1\" = version ]; then echo clientVersion: ok; exit 0; fi\nexit 1"
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    path.display().to_string()
+}
+
 #[test]
 fn dt_kube_test_connection_cached() {
     let (dir, kube) = open();
+    std::env::set_var("KUMA_KUBECTL_BIN", mock_kubectl(&dir));
     let mut params = serde_json::Map::new();
     params.insert("id".into(), json!(kuma_store::kubeconfig::DEFAULT_ID));
     let a = kube.test_connection(&params).unwrap();
     let b = kube.test_connection(&params).unwrap();
     assert_eq!(a["verifiedAt"], b["verifiedAt"]);
-    let _ = dir;
+    std::env::remove_var("KUMA_KUBECTL_BIN");
 }
