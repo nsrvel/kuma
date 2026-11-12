@@ -228,9 +228,13 @@ impl Application {
             methods::SERVICE_UPDATE => {
                 DispatchOutcome::Reply(service::update(req.id, store.service(), bus, &req.params))
             }
-            methods::SERVICE_DELETE => {
-                DispatchOutcome::Reply(service::delete(req.id, store.as_ref(), &self.exec, bus, &req.params))
-            }
+            methods::SERVICE_DELETE => DispatchOutcome::Reply(service::delete(
+                req.id,
+                store.as_ref(),
+                &self.exec,
+                bus,
+                &req.params,
+            )),
             methods::SERVICE_DUPLICATE => DispatchOutcome::Reply(service::duplicate(
                 req.id,
                 store.service(),
@@ -324,9 +328,12 @@ impl Application {
             methods::SERVICE_START_ALL => {
                 DispatchOutcome::Reply(exec::start_all(req.id, store, &self.exec, bus, &req.params))
             }
-            methods::SERVICE_STOP_ALL => {
-                DispatchOutcome::Reply(exec::stop_all(store.as_ref(), &self.exec, &req.params, req.id))
-            }
+            methods::SERVICE_STOP_ALL => DispatchOutcome::Reply(exec::stop_all(
+                store.as_ref(),
+                &self.exec,
+                &req.params,
+                req.id,
+            )),
             methods::RUNTIME_ADOPT_REPORT => {
                 DispatchOutcome::Reply(exec::adopt_report(req.id, &self.exec))
             }

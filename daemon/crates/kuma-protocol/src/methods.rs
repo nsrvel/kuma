@@ -200,7 +200,11 @@ mod tests {
             let tool = rpc_to_mcp_tool(m);
             assert_eq!(mcp_tool_to_rpc(&tool), Some(*m), "failed mapping for {m}");
             let without_prefix = tool.strip_prefix("kuma_").unwrap();
-            assert_eq!(mcp_tool_to_rpc(without_prefix), Some(*m), "failed mapping for {without_prefix}");
+            assert_eq!(
+                mcp_tool_to_rpc(without_prefix),
+                Some(*m),
+                "failed mapping for {without_prefix}"
+            );
         }
     }
 }

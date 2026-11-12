@@ -49,8 +49,16 @@ pub fn import(
     };
     match port.import(obj) {
         Ok(v) => {
-            let ws_count = v.get("counts").and_then(|c| c.get("workspaces")).and_then(|n| n.as_u64()).unwrap_or(0);
-            let svc_count = v.get("counts").and_then(|c| c.get("services")).and_then(|n| n.as_u64()).unwrap_or(0);
+            let ws_count = v
+                .get("counts")
+                .and_then(|c| c.get("workspaces"))
+                .and_then(|n| n.as_u64())
+                .unwrap_or(0);
+            let svc_count = v
+                .get("counts")
+                .and_then(|c| c.get("services"))
+                .and_then(|n| n.as_u64())
+                .unwrap_or(0);
             let _ = bus.publish(
                 "data.imported",
                 serde_json::json!({

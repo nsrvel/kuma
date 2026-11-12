@@ -71,7 +71,11 @@ pub fn start(
         return Response::err(id, ERR_KUMA, "missing id");
     };
     if let Ok(svc) = store.service().get(sid) {
-        if svc.get("isDisabled").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if svc
+            .get("isDisabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             return Response {
                 jsonrpc: "2.0".into(),
                 result: None,
@@ -146,7 +150,11 @@ pub fn restart(
         return Response::err(id, ERR_KUMA, "missing id");
     };
     if let Ok(svc) = store.service().get(sid) {
-        if svc.get("isDisabled").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if svc
+            .get("isDisabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             let _ = stop_service(exec, sid);
             let _ = store.runtime_process().delete_row(sid);
             return Response {
@@ -223,7 +231,12 @@ pub fn start_all(
     Response::ok(id, json!({ "started": started }))
 }
 
-pub fn stop_all(store: &StoreHandle, exec: &Arc<ExecEngine>, params: &Value, id: Option<Value>) -> Response {
+pub fn stop_all(
+    store: &StoreHandle,
+    exec: &Arc<ExecEngine>,
+    params: &Value,
+    id: Option<Value>,
+) -> Response {
     let ws_filter = params.get("workspaceID").and_then(|v| v.as_str());
     let ids = exec.running_service_ids();
     let mut stopped = 0;
