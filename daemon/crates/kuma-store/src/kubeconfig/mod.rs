@@ -11,6 +11,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+mod discovery;
+
 const PROBE_TTL_SECS: u64 = 300;
 
 #[derive(Clone)]
@@ -28,6 +30,7 @@ pub struct KubeConfigStore {
     settings: SettingsStore,
     vault: Vault,
     probe_cache: Arc<Mutex<HashMap<String, ProbeCacheEntry>>>,
+    discovery_cache: Arc<Mutex<HashMap<String, ProbeCacheEntry>>>,
 }
 
 impl KubeConfigStore {
@@ -43,6 +46,7 @@ impl KubeConfigStore {
             settings,
             vault,
             probe_cache: Arc::new(Mutex::new(HashMap::new())),
+            discovery_cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -318,6 +322,7 @@ impl KubeConfigStore {
             let plain = decrypt_kube_config_content(&self.vault, c).map_err(map_vault_err)?;
             self.materialize(&id, &plain)?;
         }
+        self.clear_discovery_cache();
         self.get(&id, false)
     }
 
@@ -336,6 +341,7 @@ impl KubeConfigStore {
         drop(conn);
         let path = self.material_path(&id);
         let _ = std::fs::remove_file(path);
+        self.clear_discovery_cache();
         Ok(json!({ "deleted": true, "id": id }))
     }
 
@@ -408,21 +414,55 @@ fn default_entry(settings: &SettingsStore) -> Result<Value, KubeConfigError> {
     ))
 }
 
-fn default_source_path(settings: &SettingsStore) -> Result<PathBuf, KubeConfigError> {
-    if let Ok(v) = settings.get("kuma.settings.customKubeconfigPath") {
-        if let Some(p) = v.get("value").and_then(|x| x.as_str()) {
-            let t = p.trim();
-            if !t.is_empty() {
-                return Ok(expand_tilde(t));
+fn setting_effective_string(settings: &SettingsStore, key: &str) -> String {
+    settings
+        .get(key)
+        .ok()
+        .and_then(|v| {
+            v.get("effective")
+                .or_else(|| v.get("value"))
+                .and_then(|x| x.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        })
+        .unwrap_or_default()
+}
+
+/// In-use Default kubeconfig file ([03 §3.10.7](docs/specs/daemon/03-settings-and-environment.md)).
+fn resolved_default_kubeconfig(settings: &SettingsStore) -> Option<PathBuf> {
+    let custom = setting_effective_string(settings, "kuma.settings.customKubeconfigPath");
+    if !custom.is_empty() {
+        let path = expand_tilde(&custom);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    if let Ok(kubeconfig) = std::env::var("KUBECONFIG") {
+        for part in kubeconfig.split(':').filter(|p| !p.is_empty()) {
+            let path = expand_tilde(part.trim());
+            if path.exists() {
+                return Some(path);
             }
         }
     }
-    Ok(expand_tilde("~/.kube/config"))
+    let home = expand_tilde("~/.kube/config");
+    if home.exists() {
+        Some(home)
+    } else {
+        None
+    }
+}
+
+fn default_source_path(settings: &SettingsStore) -> Result<PathBuf, KubeConfigError> {
+    Ok(resolved_default_kubeconfig(settings).unwrap_or_else(|| expand_tilde("~/.kube/config")))
 }
 
 fn default_plain_yaml(settings: &SettingsStore) -> Result<String, KubeConfigError> {
-    let path = default_source_path(settings)?;
-    Ok(std::fs::read_to_string(&path).unwrap_or_default())
+    let Some(path) = resolved_default_kubeconfig(settings) else {
+        return Ok(String::new());
+    };
+    Ok(std::fs::read_to_string(path).unwrap_or_default())
 }
 
 fn expand_tilde(p: &str) -> PathBuf {

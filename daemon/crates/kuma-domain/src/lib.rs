@@ -240,6 +240,9 @@ pub enum KubeConfigError {
     NameEmpty,
     ContentEmpty,
     Io { detail: String },
+    KubectlNotFound,
+    KubectlFailed { detail: String },
+    InvalidEnum { field: String, value: String },
 }
 
 impl KubeConfigError {
@@ -250,6 +253,9 @@ impl KubeConfigError {
             Self::NameEmpty => "KUMA_K8S_NAME_EMPTY",
             Self::ContentEmpty => "KUMA_K8S_CONTENT_EMPTY",
             Self::Io { .. } => "KUMA_K8S_IO",
+            Self::KubectlNotFound => "KUMA_K8S_KUBECTL_NOT_FOUND",
+            Self::KubectlFailed { .. } => "KUMA_K8S_KUBECTL_FAILED",
+            Self::InvalidEnum { .. } => "KUMA_DAT_INVALID_ENUM",
         }
     }
 
@@ -260,6 +266,13 @@ impl KubeConfigError {
             Self::NameEmpty => "Name cannot be empty".into(),
             Self::ContentEmpty => "Kubeconfig content cannot be empty".into(),
             Self::Io { detail } => detail.clone(),
+            Self::KubectlNotFound => {
+                "Required binary 'kubectl' could not be located on this Mac.".into()
+            }
+            Self::KubectlFailed { detail } => detail.clone(),
+            Self::InvalidEnum { field, value } => {
+                format!("Invalid value '{value}' for {field}")
+            }
         }
     }
 }
