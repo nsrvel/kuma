@@ -7,7 +7,10 @@ use kuma_protocol::methods;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
-#[command(name = "kuma", about = "Kuma local dev services background daemon and MCP server")]
+#[command(
+    name = "kuma",
+    about = "Kuma local dev services background daemon and MCP server"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
