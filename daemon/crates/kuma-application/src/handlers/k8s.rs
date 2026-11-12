@@ -1,82 +1,22 @@
+use crate::handlers::kuma_err::kube_err;
 use kuma_protocol::jsonrpc::Response;
 use kuma_store::{KubeConfigStore, StoreHandle};
-use serde_json::{json, Value};
-
-fn kubectl_bin() -> String {
-    std::env::var("KUMA_KUBECTL_BIN").unwrap_or_else(|_| "kubectl".into())
-}
-
-fn kubeconfig_path(store: &StoreHandle, kid: &str) -> String {
-    if kid == kuma_store::kubeconfig::DEFAULT_ID {
-        store
-            .kubeconfig()
-            .get(kid, false)
-            .ok()
-            .and_then(|v| {
-                v.get("kubeconfig")
-                    .and_then(|k| k.get("sourceFilePath"))
-                    .and_then(|p| p.as_str())
-                    .map(str::to_string)
-            })
-            .unwrap_or_default()
-    } else {
-        store.kubeconfig().material_path(kid).display().to_string()
-    }
-}
+use serde_json::Value;
+use std::path::Path;
 
 pub fn namespaces(id: Option<Value>, store: &StoreHandle, params: &Value) -> Response {
-    let kid = params
-        .get("kubeConfigID")
-        .and_then(|v| v.as_str())
-        .unwrap_or(kuma_store::kubeconfig::DEFAULT_ID);
-    let path = kubeconfig_path(store, kid);
-    let out = std::process::Command::new(kubectl_bin())
-        .env("KUBECONFIG", &path)
-        .args(["get", "ns", "-o", "json"])
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {
-            let parsed: Value = serde_json::from_slice(&o.stdout).unwrap_or(json!({ "items": [] }));
-            Response::ok(
-                id,
-                json!({ "namespaces": parsed.get("items").cloned().unwrap_or(json!([])) }),
-            )
-        }
-        Ok(o) => Response::ok(
-            id,
-            json!({
-                "namespaces": [],
-                "error": String::from_utf8_lossy(&o.stderr).trim(),
-            }),
-        ),
-        Err(e) => Response::ok(id, json!({ "namespaces": [], "error": e.to_string() })),
+    let bin = resolve_kubectl(store);
+    match store.kubeconfig().list_namespaces(params, bin.as_deref()) {
+        Ok(v) => Response::ok(id, v),
+        Err(e) => kube_err(id, e),
     }
 }
 
 pub fn resources(id: Option<Value>, store: &StoreHandle, params: &Value) -> Response {
-    let kid = params
-        .get("kubeConfigID")
-        .and_then(|v| v.as_str())
-        .unwrap_or(kuma_store::kubeconfig::DEFAULT_ID);
-    let ns = params
-        .get("namespace")
-        .and_then(|v| v.as_str())
-        .unwrap_or("default");
-    let path = kubeconfig_path(store, kid);
-    let out = std::process::Command::new(kubectl_bin())
-        .env("KUBECONFIG", &path)
-        .args(["get", "all", "-n", ns, "-o", "json"])
-        .output();
-    match out {
-        Ok(o) if o.status.success() => Response::ok(
-            id,
-            json!({ "resources": serde_json::from_slice::<Value>(&o.stdout).unwrap_or(json!({})) }),
-        ),
-        Ok(o) => Response::ok(
-            id,
-            json!({ "resources": {}, "error": String::from_utf8_lossy(&o.stderr).trim() }),
-        ),
-        Err(e) => Response::ok(id, json!({ "resources": {}, "error": e.to_string() })),
+    let bin = resolve_kubectl(store);
+    match store.kubeconfig().list_resources(params, bin.as_deref()) {
+        Ok(v) => Response::ok(id, v),
+        Err(e) => kube_err(id, e),
     }
 }
 
@@ -91,4 +31,40 @@ pub fn resolve_target(id: Option<Value>, _store: &KubeConfigStore, params: &Valu
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
     Response::ok(id, kuma_store::resolve_k8s_target(target, pattern))
+}
+
+/// `KUMA_KUBECTL_BIN` wins for fixtures. Otherwise settings custom path, then PATH.
+fn resolve_kubectl(store: &StoreHandle) -> Option<String> {
+    if let Ok(bin) = std::env::var("KUMA_KUBECTL_BIN") {
+        let trimmed = bin.trim();
+        if !trimmed.is_empty() {
+            return is_executable_file(trimmed).then(|| trimmed.to_string());
+        }
+    }
+    let resolved = store.env().resolve("kubectl", None, true);
+    resolved
+        .get("path")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+fn is_executable_file(path: &str) -> bool {
+    let path = Path::new(path);
+    std::fs::metadata(path)
+        .map(|meta| {
+            if meta.is_dir() {
+                return false;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                meta.permissions().mode() & 0o111 != 0
+            }
+            #[cfg(not(unix))]
+            {
+                true
+            }
+        })
+        .unwrap_or(false)
 }

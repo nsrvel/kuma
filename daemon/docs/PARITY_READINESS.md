@@ -12,12 +12,12 @@
 
 ## Works-well (mcp-tools.csv)
 
-- **`logic_status=partial` (4):** `k8s.namespaces`, `k8s.resources`, `logs.follow`, `service.preflight`
-- **`auto_test=y`:** smoke + module DT (`dt_kube`, `dt_log_workload`, `dt_prv_delete`, …)
+- **`k8s.namespaces` / `k8s.resources`:** `logic_status=done`; live discovery cache landed (`manual_smoke=n`, fixture tests in `dt_k8s_rpc`)
+- **`auto_test=y`:** smoke + module DT (`dt_k8s_rpc`, `dt_kube`, `dt_log_workload`, `dt_prv_delete`, …)
 
 ## Residual spec depth
 
-- Live k8s discovery cache; RPC `logs.follow` event multiplex
+- RPC `logs.follow` event multiplex
 - `service.preflight` async `k8s.target_resolve`
 - Line coverage push to **90%** (`lib.rs` run loop, `runner.rs`, `settings.rs`, `workspace/mod.rs`)
 - **0** `logic_status=partial` in `mcp-tools.csv` (wave 2)
