@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
 
 	"github.com/nsrvel/kuma/apps/cli/internal/view"
 	"github.com/spf13/cobra"
@@ -35,23 +34,21 @@ var settingsListCmd = &cobra.Command{
 		}
 
 		var res struct {
-			Settings map[string]interface{} `json:"settings"`
+			Settings []struct {
+				Key       string      `json:"key"`
+				Effective interface{} `json:"effective"`
+				Type      string      `json:"type"`
+			} `json:"settings"`
 		}
 		if err := json.Unmarshal(raw, &res); err != nil {
 			return err
 		}
 
-		var keys []string
-		for k := range res.Settings {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		headers := []string{"KEY", "VALUE"}
+		headers := []string{"KEY", "TYPE", "VALUE"}
 		var rows [][]string
-		for _, k := range keys {
-			valStr := fmt.Sprintf("%v", res.Settings[k])
-			rows = append(rows, []string{k, valStr})
+		for _, s := range res.Settings {
+			valStr := fmt.Sprintf("%v", s.Effective)
+			rows = append(rows, []string{s.Key, s.Type, valStr})
 		}
 
 		view.RenderTable(headers, rows)
