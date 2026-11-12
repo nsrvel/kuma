@@ -141,6 +141,9 @@ async fn handle_connection(
     let mut lines = BufReader::new(reader).lines();
     let mut ctx = DispatchContext::unix(ClientKind::Cli);
 
+    let event_rx = app.store().events().live_subscribe();
+    let mut active_sub_id: Option<String> = None;
+
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -157,20 +160,55 @@ async fn handle_connection(
                 let response = match jsonrpc::Request::parse_line(&line) {
                     Ok(req) => {
                         tracing::debug!(method = %req.method, id = ?req.id, "rpc request");
-                        match app.dispatch(req, &mut ctx) {
+                        let is_subscribe = req.method == kuma_protocol::methods::EVENTS_SUBSCRIBE;
+                        let is_unsubscribe = req.method == kuma_protocol::methods::EVENTS_UNSUBSCRIBE;
+                        let outcome = app.dispatch(req, &mut ctx);
+                        let r = match outcome {
                             DispatchOutcome::Reply(r) => r,
                             DispatchOutcome::ShutdownRequested(r) => {
                                 let _ = shutdown_tx.send(());
                                 r
                             }
+                        };
+                        if is_subscribe {
+                            if let Some(res) = &r.result {
+                                if let Some(sub_id) = res.get("subscriptionId").and_then(|v| v.as_str()) {
+                                    active_sub_id = Some(sub_id.to_string());
+                                }
+                            }
+                        } else if is_unsubscribe {
+                            active_sub_id = None;
                         }
+                        r
                     }
                     Err(_) => Response::err(None, ERR_PARSE, "parse error"),
                 };
                 writer.write_all(response.to_line()?.as_bytes()).await?;
             }
+            _ = tokio::time::sleep(std::time::Duration::from_millis(50)), if active_sub_id.is_some() => {
+                while let Ok(line) = event_rx.try_recv() {
+                    if let Some(sub_id) = &active_sub_id {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
+                            let frame = serde_json::json!({
+                                "type": "event",
+                                "subscriptionId": sub_id,
+                                "event": val,
+                            });
+                            if let Ok(mut encoded) = serde_json::to_string(&frame) {
+                                encoded.push('\n');
+                                if writer.write_all(encoded.as_bytes()).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             _ = shutdown.recv() => break,
         }
+    }
+    if let Some(sub_id) = active_sub_id {
+        app.store().events().unsubscribe(&sub_id);
     }
     Ok(())
 }

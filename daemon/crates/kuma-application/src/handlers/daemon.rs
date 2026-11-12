@@ -4,6 +4,7 @@ use kuma_exec::ExecEngine;
 use kuma_protocol::jsonrpc::Response;
 use kuma_protocol::{paths, PROTOCOL_VERSION};
 use serde_json::{json, Value};
+use std::sync::Arc;
 
 pub fn ping(id: Option<Value>, client_kind: ClientKind) -> Response {
     Response::ok(
@@ -55,8 +56,25 @@ pub fn status(
     )
 }
 
-pub fn shutdown(id: Option<Value>, exec: &ExecEngine, request_shutdown: &dyn Fn()) -> Response {
-    let stopped = exec.stop_all();
+pub fn shutdown(
+    id: Option<Value>,
+    exec: &ExecEngine,
+    bus: &Arc<kuma_store::EventBus>,
+    params: &Value,
+    request_shutdown: &dyn Fn(),
+) -> Response {
+    let stop_services = params
+        .get("stopServices")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let mut stopped = 0;
+    if stop_services {
+        stopped = exec.stop_all();
+    }
+    let _ = bus.publish(
+        "daemon.shutting_down",
+        json!({ "stopServices": stop_services }),
+    );
     request_shutdown();
     Response::ok(id, json!({ "accepted": true, "stoppedServices": stopped }))
 }

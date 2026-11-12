@@ -78,13 +78,13 @@ pub async fn run_stdio_mcp() -> Result<()> {
 }
 
 async fn call_tool(client: &mut DaemonClient, tool: &str, args: Value) -> Result<String> {
-    let rpc = tool.strip_prefix("kuma_").unwrap_or(tool).replace('_', ".");
+    let rpc = methods::mcp_tool_to_rpc(tool).unwrap_or(tool);
     let params = if args.as_object().map(|o| o.is_empty()).unwrap_or(true) {
         json!({})
     } else {
         args
     };
-    let v = client.call(&rpc, params).await?;
+    let v = client.call(rpc, params).await?;
     let text = serde_json::to_string_pretty(&v)?;
     Ok(strip_secret_fields(&text))
 }
@@ -96,10 +96,11 @@ fn strip_secret_fields(text: &str) -> String {
 fn mcp_tools() -> Vec<Value> {
     methods::all_method_names()
         .into_iter()
+        .filter(|m| *m != methods::DAEMON_ROTATE_API_TOKEN)
         .map(|m| {
-            let snake = m.replace('.', "_");
+            let tool_name = methods::rpc_to_mcp_tool(m);
             json!({
-                "name": format!("kuma_{snake}"),
+                "name": tool_name,
                 "description": m,
                 "inputSchema": { "type": "object" },
             })

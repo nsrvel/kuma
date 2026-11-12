@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 pub fn tail(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
     let sid = params
         .get("serviceID")
+        .or_else(|| params.get("id"))
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
@@ -17,6 +18,7 @@ pub fn tail(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
 pub fn clear(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
     let sid = params
         .get("serviceID")
+        .or_else(|| params.get("id"))
         .and_then(|v| v.as_str())
         .unwrap_or("");
     if sid.is_empty() {
@@ -139,6 +141,7 @@ fn try_kubectl_logs_tail(
 pub fn follow(id: Option<Value>, logs: &LogBuffer, params: &Value) -> Response {
     let sid = params
         .get("serviceID")
+        .or_else(|| params.get("id"))
         .and_then(|v| v.as_str())
         .unwrap_or("");
     if sid.is_empty() {
