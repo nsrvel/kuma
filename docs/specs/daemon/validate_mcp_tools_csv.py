@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-DISPATCH = REPO / "daemon/crates/kuma-application/src/dispatch.rs"
-METHODS = REPO / "daemon/crates/kuma-protocol/src/methods.rs"
+DISPATCH = REPO / "apps/daemon/crates/kuma-application/src/dispatch.rs"
+METHODS = REPO / "apps/daemon/crates/kuma-protocol/src/methods.rs"
 CSV_PATH = Path(__file__).resolve().parent / "mcp-tools.csv"
 
 CONST_USE = re.compile(r"methods::([A-Z0-9_]+)")

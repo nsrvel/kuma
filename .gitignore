@@ -1,13 +1,14 @@
 # Xcode build outputs & caches
-build/
-DerivedData/
-.derivedData/
-.build/
-.swiftpm/
-.spm/
+**/build/
+**/DerivedData/
+**/.derivedData/
+**/.build/
+**/.swiftpm/
+**/.spm/
+**/.venv-dmg/
 
 # Local distribution artifacts (upload via GitHub Releases instead)
-dist/
+**/dist/
 
 # Build logs & artifacts
 *.log
@@ -30,6 +31,7 @@ Icon
 ._*
 
 # Rust (Kuma daemon workspace)
+apps/daemon/target/
 daemon/target/
 
 # Temporary files & local caches

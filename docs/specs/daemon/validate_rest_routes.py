@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 CSV_PATH = Path(__file__).resolve().parent / "mcp-tools.csv"
-DAEMON = REPO / "daemon"
+DAEMON = REPO / "apps/daemon"
 
 ENDPOINT = re.compile(r"^(GET|POST|PUT|PATCH|DELETE)\s+(/v1/\S+)")
 

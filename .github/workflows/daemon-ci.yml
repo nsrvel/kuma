@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'daemon/**'
+      - 'apps/daemon/**'
       - 'docs/specs/daemon/**'
       - '.github/workflows/daemon-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'daemon/**'
+      - 'apps/daemon/**'
       - 'docs/specs/daemon/**'
       - '.github/workflows/daemon-ci.yml'
 
@@ -24,7 +24,7 @@ jobs:
     runs-on: macos-15
     defaults:
       run:
-        working-directory: daemon
+        working-directory: apps/daemon
     steps:
       - uses: actions/checkout@v4
 
@@ -42,19 +42,19 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            daemon/target
-          key: cargo-daemon-${{ runner.os }}-${{ hashFiles('daemon/Cargo.lock', 'daemon/**/*.toml', 'daemon/**/*.rs') }}
+            apps/daemon/target
+          key: cargo-daemon-${{ runner.os }}-${{ hashFiles('apps/daemon/Cargo.lock', 'apps/daemon/**/*.toml', 'apps/daemon/**/*.rs') }}
           restore-keys: |
             cargo-daemon-${{ runner.os }}-
 
       - name: Validate mcp-tools.csv vs dispatch
-        run: python3 ../docs/specs/daemon/validate_mcp_tools_csv.py --strict
+        run: python3 ../../docs/specs/daemon/validate_mcp_tools_csv.py --strict
 
       - name: Validate mcp-tools.csv honesty (works-well)
-        run: python3 ../docs/specs/daemon/validate_mcp_tools_honesty.py --strict
+        run: python3 ../../docs/specs/daemon/validate_mcp_tools_honesty.py --strict
 
       - name: check_traceability (spec surfaces)
-        run: python3 ../docs/specs/daemon/check_traceability.py
+        run: python3 ../../docs/specs/daemon/check_traceability.py
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
