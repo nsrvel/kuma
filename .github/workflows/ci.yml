@@ -10,21 +10,188 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Branch protection on main requires a check named exactly "Build & Test (macOS)".
+# paths-ignore would skip this workflow and leave that check pending forever.
+# A second job with the same name is not safe either: the job that does not run
+# is skipped, GitHub counts a skipped required check as success, and that
+# success can satisfy the requirement even when the Xcode job failed.
+# One job keeps the name. Daemon-only diffs run it on ubuntu-latest and succeed
+# without Xcode; every other diff runs it on macos-15.
 jobs:
-  test:
-    name: Build & Test (macOS)
-    timeout-minutes: 20
-    # objectVersion 77 requires Xcode 16+ (macos-14 images ship Xcode 15.4).
-    runs-on: macos-15
+  changes:
+    name: Classify changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      runner: ${{ steps.filter.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Choose macOS or a daemon-only no-op
+        id: filter
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ (github.event_name == 'pull_request' && github.event.pull_request.base.sha) || github.event.before }}
+          HEAD_SHA: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.sha) || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+        run: |
+          set -euo pipefail
+
+          # Keep in sync with the path filters in .github/workflows/daemon-ci.yml.
+          # Any other path, including .github/workflows/ci.yml, runs Xcode.
+          # Unknown diffs fail closed onto macos-15.
+
+          choose() {
+            echo "runner=$1" >> "$GITHUB_OUTPUT"
+            echo "$2"
+          }
+
+          is_daemon_only() {
+            case "$1" in
+              daemon/*|docs/specs/daemon/*|.github/workflows/daemon-ci.yml)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
+          }
+
+          have_commit() {
+            git cat-file -e "$1^{commit}" >/dev/null 2>&1
+          }
+
+          fetch_commit() {
+            local sha="$1"
+            if have_commit "$sha"; then
+              return 0
+            fi
+            git fetch --no-tags origin "$sha" >/dev/null 2>&1 || true
+            if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER}" ]; then
+              git fetch --no-tags origin "pull/${PR_NUMBER}/head" >/dev/null 2>&1 || true
+            fi
+            if have_commit "$sha"; then
+              return 0
+            fi
+            return 1
+          }
+
+          case "${EVENT_NAME}" in
+            pull_request|push) ;;
+            *)
+              choose macos-15 "Unexpected event ${EVENT_NAME}; running Xcode."
+              exit 0
+              ;;
+          esac
+
+          zero=0000000000000000000000000000000000000000
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "$zero" ] || ! [[ "${BASE_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            choose macos-15 "No comparable base commit; running Xcode."
+            exit 0
+          fi
+          if [ -z "${HEAD_SHA}" ] || ! [[ "${HEAD_SHA}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            choose macos-15 "Head commit is missing; running Xcode."
+            exit 0
+          fi
+          if [ "${EVENT_NAME}" = "pull_request" ] && ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            choose macos-15 "Pull request number is missing; running Xcode."
+            exit 0
+          fi
+
+          echo "event=${EVENT_NAME} base=${BASE_SHA} head=${HEAD_SHA}"
+
+          if ! fetch_commit "${BASE_SHA}" || ! fetch_commit "${HEAD_SHA}"; then
+            choose macos-15 "Base or head commit is not available; running Xcode."
+            exit 0
+          fi
+
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            # Three-dot: files this pull request introduces, not files already on the base branch.
+            diff_args=("${BASE_SHA}...${HEAD_SHA}")
+          else
+            # Two-dot: the tree change this push applies.
+            diff_args=("${BASE_SHA}" "${HEAD_SHA}")
+          fi
+
+          diff_out="$(git -c core.quotepath=false diff --name-status --find-renames "${diff_args[@]}")"
+
+          daemon_only=true
+          saw_file=false
+          other_count=0
+          while IFS=$'\t' read -r status old new || [ -n "${status:-}" ]; do
+            [ -z "${status:-}" ] && continue
+            saw_file=true
+            paths=()
+            if [ -n "${old:-}" ]; then
+              paths+=("$old")
+            fi
+            if [ -n "${new:-}" ]; then
+              paths+=("$new")
+            fi
+            if [ "${#paths[@]}" -eq 0 ]; then
+              daemon_only=false
+              other_count=$((other_count + 1))
+              echo "Requires Xcode: unparsed diff line (${status})"
+              continue
+            fi
+            for path in "${paths[@]}"; do
+              if is_daemon_only "$path"; then
+                continue
+              fi
+              daemon_only=false
+              other_count=$((other_count + 1))
+              if [ "$other_count" -le 30 ]; then
+                echo "Requires Xcode: ${path}"
+              fi
+            done
+          done <<< "$diff_out"
+
+          if [ "$saw_file" = false ]; then
+            choose ubuntu-latest "No file changes; skipping Xcode."
+            exit 0
+          fi
+          if [ "$daemon_only" = true ]; then
+            choose ubuntu-latest "Only daemon paths changed; skipping Xcode."
+            exit 0
+          fi
+          choose macos-15 "Changed paths require the macOS Xcode job (${other_count} non-daemon path(s))."
+
+  test:
+    name: Build & Test (macOS)
+    needs: changes
+    # Run when classification fails so this required check turns red.
+    # A skipped required check counts as success and would not block the merge.
+    if: ${{ !cancelled() }}
+    timeout-minutes: 20
+    # objectVersion 77 requires Xcode 16+ (macos-14 images ship Xcode 15.4).
+    runs-on: ${{ (needs.changes.result == 'success' && needs.changes.outputs.runner) || 'ubuntu-latest' }}
+    steps:
+      - name: Fail closed when path classification fails
+        if: needs.changes.result != 'success' || (runner.os == 'macOS' && needs.changes.outputs.runner != 'macos-15') || (runner.os != 'macOS' && needs.changes.outputs.runner != 'ubuntu-latest')
+        run: |
+          echo "::error::Could not classify changed paths, so this check will not report a skipped-green macOS result."
+          exit 1
+
+      - name: Skip Xcode for daemon-only changes
+        if: runner.os != 'macOS'
+        run: |
+          echo "Changed paths are limited to daemon/**, docs/specs/daemon/**, and .github/workflows/daemon-ci.yml."
+          echo "Skipping the Xcode build. Daemon CI reports Rust (macOS) for these paths."
+
+      - if: runner.os == 'macOS'
+        uses: actions/checkout@v4
 
       - name: Select Xcode 16
+        if: runner.os == 'macOS'
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16'
 
       - name: Cache Swift packages
+        if: runner.os == 'macOS'
         uses: actions/cache@v4
         with:
           path: .spm
@@ -33,6 +200,7 @@ jobs:
             spm-${{ runner.os }}-
 
       - name: Cache DerivedData
+        if: runner.os == 'macOS'
         uses: actions/cache@v4
         with:
           path: build/DerivedData
@@ -41,9 +209,11 @@ jobs:
             derived-${{ runner.os }}-
 
       - name: Resolve Swift packages
+        if: runner.os == 'macOS'
         run: xcodebuild -scheme Kuma -resolvePackageDependencies -clonedSourcePackagesDirPath .spm
 
       - name: Build for testing
+        if: runner.os == 'macOS'
         run: |
           set -o pipefail
           xcodebuild \
@@ -54,6 +224,7 @@ jobs:
             build-for-testing
 
       - name: Test without building
+        if: runner.os == 'macOS'
         env:
           NSUnbufferedIO: YES
         run: |
@@ -68,7 +239,7 @@ jobs:
             test-without-building
 
       - name: Upload test results on failure
-        if: failure()
+        if: failure() && runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: xcode-test-results
