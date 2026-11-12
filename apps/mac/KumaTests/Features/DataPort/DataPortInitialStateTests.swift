@@ -125,10 +125,12 @@ struct DataPortInitialStateTests {
     @Test("DataPort.A07: docs sample Kuma-Screenshot-Demo.json decodes as KumaBackup")
     func testScreenshotSampleBackupDecodes() throws {
         let repoRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+            .deletingLastPathComponent() // DataPort
+            .deletingLastPathComponent() // Features
+            .deletingLastPathComponent() // KumaTests
+            .deletingLastPathComponent() // mac
+            .deletingLastPathComponent() // apps
+            .deletingLastPathComponent() // repo root
         let url = repoRoot.appendingPathComponent("docs/samples/Kuma-Screenshot-Demo.json")
         let data = try Data(contentsOf: url)
         let backup = try DataPortService.parseAnyBackup(from: data)
