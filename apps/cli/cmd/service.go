@@ -103,7 +103,7 @@ var serviceListCmd = &cobra.Command{
 }
 
 var serviceGetCmd = &cobra.Command{
-	Use:   "get <service-id>",
+	Use:   "get <service-id-or-name>",
 	Short: "Get detailed service configuration, providers, and port mappings",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,7 +113,7 @@ var serviceGetCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		id := args[0]
+		id, _ := c.ResolveServiceID(args[0], flagWorkspaceID)
 		var raw json.RawMessage
 		if err := c.Call("service.get", map[string]string{"id": id}, &raw); err != nil {
 			return err
@@ -313,8 +313,8 @@ var serviceDeleteCmd = &cobra.Command{
 }
 
 var serviceStartCmd = &cobra.Command{
-	Use:   "start <service-id>",
-	Short: "Start a service by ID",
+	Use:   "start <service-id-or-name>",
+	Short: "Start a service by ID or name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := getClient()
@@ -323,7 +323,7 @@ var serviceStartCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		id := args[0]
+		id, _ := c.ResolveServiceID(args[0], flagWorkspaceID)
 		var res map[string]interface{}
 		if err := c.Call("service.start", map[string]string{"id": id}, &res); err != nil {
 			return err
@@ -339,8 +339,8 @@ var serviceStartCmd = &cobra.Command{
 }
 
 var serviceStopCmd = &cobra.Command{
-	Use:   "stop <service-id>",
-	Short: "Stop a running service by ID",
+	Use:   "stop <service-id-or-name>",
+	Short: "Stop a running service by ID or name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := getClient()
@@ -349,7 +349,7 @@ var serviceStopCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		id := args[0]
+		id, _ := c.ResolveServiceID(args[0], flagWorkspaceID)
 		var res map[string]interface{}
 		if err := c.Call("service.stop", map[string]string{"id": id}, &res); err != nil {
 			return err
@@ -365,8 +365,8 @@ var serviceStopCmd = &cobra.Command{
 }
 
 var serviceRestartCmd = &cobra.Command{
-	Use:   "restart <service-id>",
-	Short: "Restart a service by ID",
+	Use:   "restart <service-id-or-name>",
+	Short: "Restart a service by ID or name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := getClient()
@@ -375,7 +375,7 @@ var serviceRestartCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		id := args[0]
+		id, _ := c.ResolveServiceID(args[0], flagWorkspaceID)
 		var res map[string]interface{}
 		if err := c.Call("service.restart", map[string]string{"id": id}, &res); err != nil {
 			return err
