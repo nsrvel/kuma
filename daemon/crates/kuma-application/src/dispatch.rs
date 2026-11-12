@@ -100,16 +100,23 @@ impl Application {
                 self.exec.as_ref(),
             )),
             methods::DAEMON_SHUTDOWN => {
-                let response =
-                    daemon::shutdown(req.id, self.exec.as_ref(), self.request_shutdown.as_ref());
+                let response = daemon::shutdown(
+                    req.id,
+                    self.exec.as_ref(),
+                    bus,
+                    &req.params,
+                    self.request_shutdown.as_ref(),
+                );
                 DispatchOutcome::ShutdownRequested(response)
             }
             methods::DAEMON_ROTATE_API_TOKEN => {
-                if !matches!(ctx.transport, crate::context::Transport::Unix) {
+                if !matches!(ctx.transport, crate::context::Transport::Unix)
+                    || matches!(ctx.client_kind, ClientKind::Mcp)
+                {
                     return DispatchOutcome::Reply(Response::err(
                         req.id,
                         ERR_KUMA,
-                        "This operation is only allowed over the local Unix socket.",
+                        "This operation is only allowed over the local Unix socket by non-MCP clients.",
                     ));
                 }
                 let resp = daemon::rotate_api_token(req.id, store.data_dir());
@@ -222,7 +229,7 @@ impl Application {
                 DispatchOutcome::Reply(service::update(req.id, store.service(), bus, &req.params))
             }
             methods::SERVICE_DELETE => {
-                DispatchOutcome::Reply(service::delete(req.id, store.service(), bus, &req.params))
+                DispatchOutcome::Reply(service::delete(req.id, store.as_ref(), &self.exec, bus, &req.params))
             }
             methods::SERVICE_DUPLICATE => DispatchOutcome::Reply(service::duplicate(
                 req.id,
@@ -238,7 +245,8 @@ impl Application {
             )),
             methods::SERVICE_SET_DISABLED => DispatchOutcome::Reply(service::set_disabled(
                 req.id,
-                store.service(),
+                store.as_ref(),
+                &self.exec,
                 bus,
                 &req.params,
             )),
@@ -316,7 +324,9 @@ impl Application {
             methods::SERVICE_START_ALL => {
                 DispatchOutcome::Reply(exec::start_all(req.id, store, &self.exec, bus, &req.params))
             }
-            methods::SERVICE_STOP_ALL => DispatchOutcome::Reply(exec::stop_all(&self.exec, req.id)),
+            methods::SERVICE_STOP_ALL => {
+                DispatchOutcome::Reply(exec::stop_all(store.as_ref(), &self.exec, &req.params, req.id))
+            }
             methods::RUNTIME_ADOPT_REPORT => {
                 DispatchOutcome::Reply(exec::adopt_report(req.id, &self.exec))
             }
@@ -374,10 +384,10 @@ impl Application {
                 DispatchOutcome::Reply(data::import_preview(req.id, store.dataport(), &req.params))
             }
             methods::DATA_IMPORT => {
-                DispatchOutcome::Reply(data::import(req.id, store.dataport(), &req.params))
+                DispatchOutcome::Reply(data::import(req.id, store.dataport(), bus, &req.params))
             }
             methods::DATA_FACTORY_RESET => {
-                DispatchOutcome::Reply(data::factory_reset(req.id, store, &self.exec))
+                DispatchOutcome::Reply(data::factory_reset(req.id, store, &self.exec, bus))
             }
             other => DispatchOutcome::Reply(Response::err(
                 req.id,

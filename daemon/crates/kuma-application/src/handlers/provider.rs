@@ -7,7 +7,11 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub fn list(id: Option<Value>, store: &ProviderStore, params: &Value) -> Response {
-    let Some(sid) = params.get("serviceID").and_then(|v| v.as_str()) else {
+    let sid = params
+        .get("serviceID")
+        .or_else(|| params.get("id"))
+        .and_then(|v| v.as_str());
+    let Some(sid) = sid else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing serviceID");
     };
     match store.list(sid) {

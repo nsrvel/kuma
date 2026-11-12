@@ -168,6 +168,23 @@ pub fn all_method_names() -> Vec<&'static str> {
     ALL.to_vec()
 }
 
+/// Convert RPC method name (e.g. "service.start_all") to MCP tool name ("kuma_service_start_all").
+pub fn rpc_to_mcp_tool(method: &str) -> String {
+    format!("kuma_{}", method.replace('.', "_"))
+}
+
+/// Convert MCP tool name (e.g. "kuma_service_start_all" or "service_start_all") back to exact RPC method name ("service.start_all").
+pub fn mcp_tool_to_rpc(tool: &str) -> Option<&'static str> {
+    let clean = tool.strip_prefix("kuma_").unwrap_or(tool);
+    for m in ALL {
+        let expected = m.replace('.', "_");
+        if clean == expected {
+            return Some(*m);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,5 +192,15 @@ mod tests {
     #[test]
     fn registry_has_74_methods() {
         assert_eq!(ALL.len(), 74);
+    }
+
+    #[test]
+    fn test_mcp_tool_bidirectional_mapping() {
+        for m in ALL {
+            let tool = rpc_to_mcp_tool(m);
+            assert_eq!(mcp_tool_to_rpc(&tool), Some(*m), "failed mapping for {m}");
+            let without_prefix = tool.strip_prefix("kuma_").unwrap();
+            assert_eq!(mcp_tool_to_rpc(without_prefix), Some(*m), "failed mapping for {without_prefix}");
+        }
     }
 }

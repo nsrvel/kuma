@@ -47,7 +47,11 @@ pub fn list(id: Option<Value>, store: &ServiceStore, params: &Value) -> Response
 }
 
 pub fn get(id: Option<Value>, store: &ServiceStore, params: &Value) -> Response {
-    let Some(sid) = params.get("id").and_then(|v| v.as_str()) else {
+    let sid = params
+        .get("id")
+        .or_else(|| params.get("serviceID"))
+        .and_then(|v| v.as_str());
+    let Some(sid) = sid else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing id");
     };
     match store.get(sid) {
@@ -102,19 +106,29 @@ pub fn update(
 
 pub fn delete(
     id: Option<Value>,
-    store: &ServiceStore,
+    store: &StoreHandle,
+    exec: &Arc<kuma_exec::ExecEngine>,
     bus: &Arc<EventBus>,
     params: &Value,
 ) -> Response {
-    let Some(sid) = params.get("id").and_then(|v| v.as_str()) else {
+    let sid = params
+        .get("id")
+        .or_else(|| params.get("serviceID"))
+        .and_then(|v| v.as_str());
+    let Some(sid) = sid else {
         return Response::err(id, kuma_protocol::jsonrpc::ERR_KUMA, "missing id");
     };
-    let workspace_id = store.get(sid).ok().and_then(|s| {
+    let workspace_id = store.service().get(sid).ok().and_then(|s| {
         s.get("workspaceID")
             .and_then(|v| v.as_str())
             .map(str::to_string)
     });
-    match store.delete(sid) {
+
+    // Orphan prevention: stop active runner & cleanup runtime_process row
+    let _ = kuma_exec::stop_service(exec, sid);
+    let _ = store.runtime_process().delete_row(sid);
+
+    match store.service().delete(sid) {
         Ok(result) => {
             let _ = bus.publish(
                 "service.deleted",
@@ -172,7 +186,8 @@ pub fn set_starred(
 
 pub fn set_disabled(
     id: Option<Value>,
-    store: &ServiceStore,
+    store: &StoreHandle,
+    exec: &Arc<kuma_exec::ExecEngine>,
     bus: &Arc<EventBus>,
     params: &Value,
 ) -> Response {
@@ -183,8 +198,22 @@ pub fn set_disabled(
             "expected object params",
         );
     };
-    match store.set_disabled(obj) {
+    match store.service().set_disabled(obj) {
         Ok(service) => {
+            let is_disabled = service
+                .get("isDisabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if is_disabled {
+                if let Some(sid) = service.get("id").and_then(|v| v.as_str()) {
+                    let _ = kuma_exec::stop_service(exec, sid);
+                    let _ = store.runtime_process().delete_row(sid);
+                    let _ = bus.publish(
+                        "service.state_changed",
+                        json!({ "serviceID": sid, "status": "stopped" }),
+                    );
+                }
+            }
             emit_service_updated(bus, &service, &["service"]);
             Response::ok(id, json!({ "service": service }))
         }
