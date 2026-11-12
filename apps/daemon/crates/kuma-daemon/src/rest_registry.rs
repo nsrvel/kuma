@@ -11,7 +11,7 @@ pub struct RestRoute {
     pub rpc_method: String,
 }
 
-const CSV: &str = include_str!("../../../../docs/specs/daemon/mcp-tools.csv");
+const CSV: &str = include_str!("../../../../../docs/specs/daemon/mcp-tools.csv");
 
 pub fn load_routes() -> Vec<RestRoute> {
     let mut out = Vec::new();

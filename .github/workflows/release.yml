@@ -28,22 +28,22 @@ jobs:
           p12-password: ${{ secrets.P12_PASSWORD }}
 
       - name: Resolve Swift packages
-        run: xcodebuild -scheme Kuma -resolvePackageDependencies -clonedSourcePackagesDirPath .spm
+        run: xcodebuild -project apps/mac/Kuma.xcodeproj -scheme Kuma -resolvePackageDependencies -clonedSourcePackagesDirPath apps/mac/.spm
 
       - name: Build release DMG
         env:
-          DERIVED_DATA_PATH: ${{ github.workspace }}/build/DerivedData
-          CLONED_SOURCE_PACKAGES_DIR: ${{ github.workspace }}/.spm
+          DERIVED_DATA_PATH: ${{ github.workspace }}/apps/mac/build/DerivedData
+          CLONED_SOURCE_PACKAGES_DIR: ${{ github.workspace }}/apps/mac/.spm
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_NOTARIZATION_PASSWORD: ${{ secrets.APPLE_NOTARIZATION_PASSWORD }}
         run: |
-          chmod +x Scripts/make-dmg.sh Scripts/mac-sign-app.sh Scripts/mac-notarize-dmg.sh
-          ./Scripts/make-dmg.sh
+          chmod +x apps/mac/Scripts/make-dmg.sh apps/mac/Scripts/mac-sign-app.sh apps/mac/Scripts/mac-notarize-dmg.sh
+          ./apps/mac/Scripts/make-dmg.sh
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Kuma-*.dmg
+          files: apps/mac/dist/Kuma-*.dmg
           generate_release_notes: true

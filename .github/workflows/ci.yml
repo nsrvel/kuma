@@ -51,7 +51,7 @@ jobs:
 
           is_daemon_only() {
             case "$1" in
-              daemon/*|docs/specs/daemon/*|.github/workflows/daemon-ci.yml)
+              apps/daemon/*|docs/specs/daemon/*|.github/workflows/daemon-ci.yml)
                 return 0
                 ;;
               *)
@@ -178,7 +178,7 @@ jobs:
       - name: Skip Xcode for daemon-only changes
         if: runner.os != 'macOS'
         run: |
-          echo "Changed paths are limited to daemon/**, docs/specs/daemon/**, and .github/workflows/daemon-ci.yml."
+          echo "Changed paths are limited to apps/daemon/**, docs/specs/daemon/**, and .github/workflows/daemon-ci.yml."
           echo "Skipping the Xcode build. Daemon CI reports Rust (macOS) for these paths."
 
       - if: runner.os == 'macOS'
@@ -194,8 +194,8 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/cache@v4
         with:
-          path: .spm
-          key: spm-${{ runner.os }}-${{ hashFiles('Kuma.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          path: apps/mac/.spm
+          key: spm-${{ runner.os }}-${{ hashFiles('apps/mac/Kuma.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: |
             spm-${{ runner.os }}-
 
@@ -203,24 +203,25 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/cache@v4
         with:
-          path: build/DerivedData
-          key: derived-${{ runner.os }}-${{ hashFiles('Kuma.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'Kuma/**/*.swift', 'KumaTests/**/*.swift') }}
+          path: apps/mac/build/DerivedData
+          key: derived-${{ runner.os }}-${{ hashFiles('apps/mac/Kuma.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'apps/mac/Kuma/**/*.swift', 'apps/mac/KumaTests/**/*.swift') }}
           restore-keys: |
             derived-${{ runner.os }}-
 
       - name: Resolve Swift packages
         if: runner.os == 'macOS'
-        run: xcodebuild -scheme Kuma -resolvePackageDependencies -clonedSourcePackagesDirPath .spm
+        run: xcodebuild -project apps/mac/Kuma.xcodeproj -scheme Kuma -resolvePackageDependencies -clonedSourcePackagesDirPath apps/mac/.spm
 
       - name: Build for testing
         if: runner.os == 'macOS'
         run: |
           set -o pipefail
           xcodebuild \
+            -project apps/mac/Kuma.xcodeproj \
             -scheme Kuma \
             -destination 'platform=macOS' \
-            -clonedSourcePackagesDirPath .spm \
-            -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath apps/mac/.spm \
+            -derivedDataPath apps/mac/build/DerivedData \
             build-for-testing
 
       - name: Test without building
@@ -230,10 +231,11 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
+            -project apps/mac/Kuma.xcodeproj \
             -scheme Kuma \
             -destination 'platform=macOS' \
-            -clonedSourcePackagesDirPath .spm \
-            -derivedDataPath build/DerivedData \
+            -clonedSourcePackagesDirPath apps/mac/.spm \
+            -derivedDataPath apps/mac/build/DerivedData \
             -resultBundlePath TestResults.xcresult \
             -maximum-test-execution-time-allowance 120 \
             test-without-building
